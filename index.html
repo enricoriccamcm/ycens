@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
   <title>Y-CENS</title>
-  <meta name="theme-color" content="#121212" />
+  <meta name="theme-color" content="#121212"/>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Y-CENS">
@@ -14,23 +14,53 @@
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     body{background:#121212;color:#f0f0f0;font-family:sans-serif;overflow-x:hidden}
     #root{min-height:100vh}
-    #loader{position:fixed;inset:0;background:#121212;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px}
-    #loader .logo{font-family:Arial,sans-serif;font-size:28px;font-weight:900;letter-spacing:4px;color:#f0f0f0}
-    #loader .logo span{color:#cc2222}
-    #loader .spinner{width:32px;height:32px;border:3px solid #333;border-top-color:#cc2222;border-radius:50%;animation:spin 0.8s linear infinite}
+    #loader{position:fixed;inset:0;background:#121212;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:20px;transition:opacity 0.3s}
+    .logo-text{font-family:Arial,sans-serif;font-size:32px;font-weight:900;letter-spacing:4px;color:#f0f0f0}
+    .logo-text span{color:#cc2222}
+    .spinner{width:36px;height:36px;border:3px solid #333;border-top-color:#cc2222;border-radius:50%;animation:spin 0.8s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
   </style>
 </head>
 <body>
   <div id="loader">
-    <div class="logo">Y<span>-</span>CENS</div>
+    <svg width="60" height="44" viewBox="0 0 60 44">
+      <polygon points="20,22 40,2 60,22 40,42" fill="#888"/>
+      <polygon points="34,22 54,2 74,22 54,42" fill="#cc2222"/>
+    </svg>
+    <div class="logo-text">Y<span>-</span>CENS</div>
     <div class="spinner"></div>
   </div>
   <div id="root"></div>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
-  <script type="text/babel" data-presets="react">
+  <script>
+    window.__babelReady = false;
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(function() {
+        try {
+          var code = document.getElementById('app-code').textContent;
+          var compiled = Babel.transform(code, {presets: ['react']}).code;
+          eval(compiled);
+          window.__babelReady = true;
+        } catch(e) {
+          console.error('Babel error:', e);
+          document.getElementById('loader').innerHTML = '<div style="color:#e05c5c;padding:20px;text-align:center">Errore caricamento: ' + e.message + '</div>';
+        }
+      }, 100);
+    });
+    // Hide loader when root has content
+    var obs = new MutationObserver(function() {
+      var root = document.getElementById('root');
+      if(root && root.children.length > 0) {
+        var loader = document.getElementById('loader');
+        if(loader) { loader.style.opacity='0'; setTimeout(function(){loader.style.display='none'},300); }
+        obs.disconnect();
+      }
+    });
+    obs.observe(document.getElementById('root'), {childList:true,subtree:true});
+  </script>
+  <script type="text/plain" id="app-code">
 const { useState, useEffect } = React;
 
 /* ─── SUPABASE CONFIG ───────────────────────────────────────────────────── */
@@ -1101,21 +1131,11 @@ function App() {
 }
 
 
-ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+const rootEl = document.getElementById("root");
+if(rootEl) ReactDOM.createRoot(rootEl).render(React.createElement(App));
   </script>
   <script>
-    // Hide loader once React renders
-    const obs = new MutationObserver(() => {
-      if (document.getElementById('root').children.length > 0) {
-        document.getElementById('loader').style.display = 'none';
-        obs.disconnect();
-      }
-    });
-    obs.observe(document.getElementById('root'), {childList: true});
-    // Fallback hide after 10s
-    setTimeout(() => { const l = document.getElementById('loader'); if(l) l.style.display='none'; }, 10000);
-    // PWA
-    if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
+    if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function(){});
   </script>
 </body>
 </html>
