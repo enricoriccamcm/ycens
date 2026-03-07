@@ -1041,7 +1041,7 @@ function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack,
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, paddingBottom: 58 }} className="screen">
-      <TopBar title={contatto.nome} onBack={onBack} right={<RefreshBtn onRefresh={() => {}} />} />
+      <TopBar title={contatto.nome} onBack={onBack} right={<><button className="tap" onClick={() => setEditing(true)} style={{ background:"none", border:"none", color:T.textMuted, cursor:"pointer", display:"flex", padding:4 }}><IEditPen /></button><RefreshBtn onRefresh={() => {}} /></>} />
       <div style={{ padding: "14px 18px" }}>
         {[
           ["NOME", contatto.nome],
