@@ -63,9 +63,9 @@ const INITIAL_STATE = {
     { id: 3, numero: "5", viaId: 2 },
   ],
   contatti: [
-    { id: 1, nome: "ENRICO", cognome: "RICCA", telefono: "333666555444", risposto: "Y", stato: "INFORMAZIONE", vuoto: "", interno: "", civicoId: 1 },
-    { id: 2, nome: "GIALLI", cognome: "", telefono: "33333222222", risposto: "Y", stato: "", vuoto: "Y", interno: "", civicoId: 1 },
-    { id: 3, nome: "BLU", cognome: "", telefono: "444444444", risposto: "", stato: "", vuoto: "", interno: "", civicoId: 1 },
+    { id: 1, nome: "ENRICO", cognome: "RICCA", telefono: "333666555444", risposto: "Y", risposto_data: null, stato: "INFORMAZIONE", vuoto: "", interno: "", civicoId: 1 },
+    { id: 2, nome: "GIALLI", cognome: "", telefono: "33333222222", risposto: "Y", risposto_data: null, stato: "", vuoto: "Y", interno: "", civicoId: 1 },
+    { id: 3, nome: "BLU", cognome: "", telefono: "444444444", risposto: "", risposto_data: null, stato: "", vuoto: "", interno: "", civicoId: 1 },
   ],
   attivita: [
     { id: 1, contattoId: 1, commento: "Emiliano gnegnegne", dataOra: "4/3/2026 13:11:47", utente: "enricoriccamcm@gmail.com" },
@@ -508,38 +508,78 @@ function VieScreen({ data, setData, zona, onSelect, onBack, onUfficio }) {
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [editModal, setEditModal] = useState(null); // via da modificare
+  const [editNome, setEditNome] = useState("");
+  const [confirmDel, setConfirmDel] = useState(null); // via da eliminare
   const vie = (data.vie||[]).filter(v => v.zonaId === zona.id).filter(v => !search || v.nome.toLowerCase().includes(search.toLowerCase()));
+  const civiciCount = id => (data.civici||[]).filter(c => c.viaId === id).length;
+
   const add = () => {
     if (!nome.trim()) return;
     setData(d => ({ ...d, vie: [...(d.vie||[]), { id: Date.now(), nome: nome.trim().toUpperCase(), zonaId: zona.id }] }));
     setNome(""); setModal(false);
   };
+
+  const saveEdit = () => {
+    if (!editNome.trim()) return;
+    sbFetch(`vie?id=eq.${editModal.id}`, { method: "PATCH", body: JSON.stringify({ nome: editNome.trim().toUpperCase() }), token: editModal._token, prefer: "return=minimal" }).catch(console.error);
+    setData(d => ({ ...d, vie: d.vie.map(v => v.id === editModal.id ? { ...v, nome: editNome.trim().toUpperCase() } : v) }));
+    setEditModal(null);
+  };
+
+  const doDelete = (v) => {
+    if (civiciCount(v.id) > 0) { setConfirmDel(null); return; }
+    sbFetch(`vie?id=eq.${v.id}`, { method: "DELETE", token: v._token, prefer: "return=minimal" }).catch(console.error);
+    setData(d => ({ ...d, vie: d.vie.filter(x => x.id !== v.id) }));
+    setConfirmDel(null);
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: T.bg, paddingBottom: 58 }} className="screen">
       <TopBar title={zona.nome} subtitle="NOME ZONA" onBack={onBack} right={<><button onClick={() => setShowSearch(s => !s)} style={{ background:"none",border:"none",color:showSearch?T.accent:T.textMuted,cursor:"pointer",display:"flex",padding:4 }}><ISearch /></button><RefreshBtn onRefresh={() => { setSearch(""); setShowSearch(false); setRefreshKey(k=>k+1); }} /></>} />
       {showSearch && <div style={{padding:"8px 16px",borderBottom:`1px solid ${T.border}`}}><input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cerca via..." style={{width:"100%",background:T.surfaceHigh,border:`1px solid ${T.border}`,borderRadius:8,color:T.text,fontSize:14,padding:"8px 12px",outline:"none"}}/></div>}
       <SectionTag label="VIE" count={vie.length} />
       <HR />
-      <TH cols={["NOME VIA", "ZONA"]} widths="1fr 1fr" />
-      {vie.map((v, i) => (
-        <div key={v.id}>
-          <div className="tap" onClick={() => onSelect(v)}
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", alignItems: "center", cursor: "pointer", background: i % 2 === 0 ? T.row : T.rowAlt }}>
-            <span style={{ padding: "14px 10px", fontSize: 14, fontWeight: 600, textAlign: "center" }}>{v.nome}</span>
-            <div style={{ padding: "14px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 13, color: T.textMuted, textAlign: "center", width: "100%" }}>{zona.nome}</span>
-              <span style={{ color: T.textDim }}><IArrow /></span>
+      <TH cols={["NOME VIA", "CIVICI", ""]} widths="1fr 0.6fr 0.7fr" />
+      {vie.map((v, i) => {
+        const nc = civiciCount(v.id);
+        return (
+          <div key={v.id}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 0.6fr 0.7fr", alignItems: "center", background: i % 2 === 0 ? T.row : T.rowAlt }}>
+              <span className="tap" onClick={() => onSelect(v)} style={{ padding: "14px 10px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>{v.nome}</span>
+              <span className="tap" onClick={() => onSelect(v)} style={{ padding: "14px 6px", fontSize: 13, color: T.textMuted, textAlign: "center", cursor: "pointer" }}>{nc || "—"}</span>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 2, padding: "0 8px" }} onClick={e => e.stopPropagation()}>
+                <button className="tap" onClick={() => { setEditModal(v); setEditNome(v.nome); }}
+                  style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", padding: 6, display: "flex" }}><IEditPen /></button>
+                <button className="tap" onClick={() => setConfirmDel(v)}
+                  style={{ background: "none", border: "none", color: nc > 0 ? T.textDim : T.accent, cursor: "pointer", padding: 6, display: "flex" }}><ITrash /></button>
+              </div>
             </div>
+            <HR />
           </div>
-          <HR />
-        </div>
-      ))}
+        );
+      })}
       <ActionRow onAdd={() => setModal(true)} />
       <FAB onClick={() => setModal(true)} />
       <BottomBar active="ufficio" onUfficio={onUfficio} />
       {modal && <Modal title="Nuova Via" onClose={() => setModal(false)}>
         <FInput label="Nome Via" value={nome} onChange={setNome} placeholder="es. VIA DI SAPONARA" />
         <PrimaryBtn label="AGGIUNGI" onClick={add} />
+      </Modal>}
+      {editModal && <Modal title="Modifica Via" onClose={() => setEditModal(null)}>
+        <FInput label="Nome Via" value={editNome} onChange={setEditNome} placeholder="es. VIA DI SAPONARA" />
+        <PrimaryBtn label="SALVA" onClick={saveEdit} />
+      </Modal>}
+      {confirmDel && <Modal title="Elimina Via" onClose={() => setConfirmDel(null)}>
+        {civiciCount(confirmDel.id) > 0
+          ? <><div style={{ color: T.textMuted, fontSize: 13, marginBottom: 16 }}>⚠️ Non puoi eliminare <b style={{color:T.text}}>{confirmDel.nome}</b> perché contiene ancora {civiciCount(confirmDel.id)} civico/i. Svuotala prima.</div><PrimaryBtn label="OK" onClick={() => setConfirmDel(null)} /></>
+          : <><div style={{ color: T.textMuted, fontSize: 13, marginBottom: 16 }}>Eliminare definitivamente <b style={{color:T.text}}>{confirmDel.nome}</b>?</div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button className="tap" onClick={() => setConfirmDel(null)} style={{ flex:1, padding:"12px", background:"none", border:`1px solid ${T.border}`, borderRadius:8, color:T.textMuted, fontWeight:700, fontSize:13, cursor:"pointer" }}>ANNULLA</button>
+                <button className="tap" onClick={() => doDelete(confirmDel)} style={{ flex:1, padding:"12px", background:T.accent, border:"none", borderRadius:8, color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>ELIMINA</button>
+              </div>
+            </>
+        }
       </Modal>}
     </div>
   );
@@ -551,6 +591,9 @@ function CiviciScreen({ data, setData, via, zona, onSelect, onBack, onUfficio })
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [editModal, setEditModal] = useState(null);
+  const [editNumero, setEditNumero] = useState("");
+  const [confirmDel, setConfirmDel] = useState(null);
   const civici = (data.civici||[]).filter(c => c.viaId === via.id).filter(c => !search || c.numero.toLowerCase().includes(search.toLowerCase()));
   const contattiStats = id => {
     const tutti = (data.contatti||[]).filter(c => c.civicoId === id);
@@ -563,67 +606,75 @@ function CiviciScreen({ data, setData, via, zona, onSelect, onBack, onUfficio })
     setData(d => ({ ...d, civici: [...(d.civici||[]), { id: tempId, numero: numero.trim(), viaId: via.id }] }));
     setNumero(""); setModal(false);
   };
+  const saveEdit = () => {
+    if (!editNumero.trim()) return;
+    sbFetch(`civici?id=eq.${editModal.id}`, { method: "PATCH", body: JSON.stringify({ numero: editNumero.trim() }), token: editModal._token, prefer: "return=minimal" }).catch(console.error);
+    setData(d => ({ ...d, civici: d.civici.map(c => c.id === editModal.id ? { ...c, numero: editNumero.trim() } : c) }));
+    setEditModal(null);
+  };
+  const doDelete = (c) => {
+    if (contattiStats(c.id).totale > 0) { setConfirmDel(null); return; }
+    sbFetch(`civici?id=eq.${c.id}`, { method: "DELETE", token: c._token, prefer: "return=minimal" }).catch(console.error);
+    setData(d => ({ ...d, civici: d.civici.filter(x => x.id !== c.id) }));
+    setConfirmDel(null);
+  };
   return (
     <div style={{ minHeight: "100vh", background: T.bg, paddingBottom: 58 }} className="screen">
       <TopBar title={via.nome} subtitle="NOME VIA" onBack={onBack} right={<><button onClick={() => setShowSearch(s => !s)} style={{ background:"none",border:"none",color:showSearch?T.accent:T.textMuted,cursor:"pointer",display:"flex",padding:4 }}><ISearch /></button><RefreshBtn onRefresh={() => { setSearch(""); setShowSearch(false); setRefreshKey(k=>k+1); }} /></>} />
       {showSearch && <div style={{padding:"8px 16px",borderBottom:`1px solid ${T.border}`}}><input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cerca civico..." style={{width:"100%",background:T.surfaceHigh,border:`1px solid ${T.border}`,borderRadius:8,color:T.text,fontSize:14,padding:"8px 12px",outline:"none"}}/></div>}
       <div style={{ padding: "12px 16px 6px" }}>
         <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, letterSpacing: 1, marginBottom: 4 }}>ZONA</div>
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 17, letterSpacing: 0.5 }}>{zona.nome}</span>
-        </div>
+        <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 17, letterSpacing: 0.5 }}>{zona.nome}</span>
       </div>
       <HR />
       <SectionTag label="CIVICI" count={civici.length} />
       <HR />
-      <TH cols={["NUMERO CIVICO", "VIA", "RISP."]} widths="1fr 1.6fr 1fr" />
-      {civici.map((c, i) => (
-        <div key={c.id}>
-          <div className="tap" onClick={() => onSelect(c)}
-            style={{ display: "grid", gridTemplateColumns: "1fr 1.6fr 1fr", alignItems: "center", cursor: "pointer", background: i % 2 === 0 ? T.row : T.rowAlt }}>
-            <span style={{ padding: "13px 10px", fontSize: 14, fontWeight: 700, textAlign: "center" }}>{c.numero}</span>
-            <span style={{ padding: "13px 10px", fontSize: 12, color: T.textMuted, textAlign: "center" }}>{via.nome}</span>
-            {(() => {
-              const { totale, risposto } = contattiStats(c.id);
-              const pieno = totale > 0 && risposto === totale;
-              const nessuno = totale === 0;
-              return (
-                <span style={{
-                  padding: "5px 10px",
-                  display: "flex", alignItems: "center", justifyContent: "space-between"
-                }}>
-                  <span style={{
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                    background: pieno ? "rgba(76,175,80,0.15)" : nessuno ? "transparent" : "rgba(255,255,255,0.04)",
-                    border: `1px solid ${pieno ? "#4caf50" : nessuno ? "#2a2a2a" : "#333"}`,
-                    borderRadius: 6, padding: "4px 10px",
-                    fontSize: 12, fontWeight: 700,
-                    color: pieno ? "#4caf50" : nessuno ? "#444" : T.textMuted,
-                    minWidth: 60, justifyContent: "center"
-                  }}>
-                    {nessuno
-                      ? <span style={{fontSize:11}}>—</span>
-                      : <>{pieno && <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#4caf50" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                        <span>{risposto}</span>
-                        <span style={{color:"#444", fontWeight:400}}>/</span>
-                        <span>{totale}</span>
-                      </>
-                    }
-                  </span>
-                  <span style={{ color: T.textDim }}><IArrow /></span>
+      <TH cols={["N°", "RISP.", ""]} widths="1fr 1.2fr 0.7fr" />
+      {civici.map((c, i) => {
+        const { totale, risposto } = contattiStats(c.id);
+        const pieno = totale > 0 && risposto === totale;
+        const nessuno = totale === 0;
+        return (
+          <div key={c.id}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr 0.7fr", alignItems: "center", background: i % 2 === 0 ? T.row : T.rowAlt }}>
+              <span className="tap" onClick={() => onSelect(c)} style={{ padding: "13px 10px", fontSize: 14, fontWeight: 700, textAlign: "center", cursor: "pointer" }}>{c.numero}</span>
+              <span className="tap" onClick={() => onSelect(c)} style={{ padding: "5px 10px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: pieno ? "rgba(76,175,80,0.15)" : nessuno ? "transparent" : "rgba(255,255,255,0.04)", border: `1px solid ${pieno ? "#4caf50" : nessuno ? "#2a2a2a" : "#333"}`, borderRadius: 6, padding: "4px 10px", fontSize: 12, fontWeight: 700, color: pieno ? "#4caf50" : nessuno ? "#444" : T.textMuted, minWidth: 60, justifyContent: "center" }}>
+                  {nessuno ? <span style={{fontSize:11}}>—</span> : <>{pieno && <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#4caf50" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}<span>{risposto}</span><span style={{color:"#444",fontWeight:400}}>/</span><span>{totale}</span></>}
                 </span>
-              );
-            })()}
+              </span>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 2, padding: "0 6px" }} onClick={e => e.stopPropagation()}>
+                <button className="tap" onClick={() => { setEditModal(c); setEditNumero(c.numero); }}
+                  style={{ background:"none", border:"none", color:T.textMuted, cursor:"pointer", padding:6, display:"flex" }}><IEditPen /></button>
+                <button className="tap" onClick={() => setConfirmDel(c)}
+                  style={{ background:"none", border:"none", color: totale > 0 ? T.textDim : T.accent, cursor:"pointer", padding:6, display:"flex" }}><ITrash /></button>
+              </div>
+            </div>
+            <HR />
           </div>
-          <HR />
-        </div>
-      ))}
+        );
+      })}
       <ActionRow onAdd={() => setModal(true)} />
       <FAB onClick={() => setModal(true)} />
       <BottomBar active="ufficio" onUfficio={onUfficio} />
       {modal && <Modal title="Nuovo Civico" onClose={() => setModal(false)}>
         <FInput label="Numero Civico" value={numero} onChange={setNumero} placeholder="es. 19" />
         <PrimaryBtn label="AGGIUNGI" onClick={add} />
+      </Modal>}
+      {editModal && <Modal title="Modifica Civico" onClose={() => setEditModal(null)}>
+        <FInput label="Numero Civico" value={editNumero} onChange={setEditNumero} placeholder="es. 19" />
+        <PrimaryBtn label="SALVA" onClick={saveEdit} />
+      </Modal>}
+      {confirmDel && <Modal title="Elimina Civico" onClose={() => setConfirmDel(null)}>
+        {contattiStats(confirmDel.id).totale > 0
+          ? <><div style={{ color: T.textMuted, fontSize: 13, marginBottom: 16 }}>⚠️ Non puoi eliminare il civico <b style={{color:T.text}}>{confirmDel.numero}</b> perché contiene ancora {contattiStats(confirmDel.id).totale} contatto/i. Svuotalo prima.</div><PrimaryBtn label="OK" onClick={() => setConfirmDel(null)} /></>
+          : <><div style={{ color: T.textMuted, fontSize: 13, marginBottom: 16 }}>Eliminare definitivamente il civico <b style={{color:T.text}}>{confirmDel.numero}</b>?</div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button className="tap" onClick={() => setConfirmDel(null)} style={{ flex:1, padding:"12px", background:"none", border:`1px solid ${T.border}`, borderRadius:8, color:T.textMuted, fontWeight:700, fontSize:13, cursor:"pointer" }}>ANNULLA</button>
+                <button className="tap" onClick={() => doDelete(confirmDel)} style={{ flex:1, padding:"12px", background:T.accent, border:"none", borderRadius:8, color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>ELIMINA</button>
+              </div>
+            </>
+        }
       </Modal>}
     </div>
   );
@@ -683,20 +734,24 @@ function ContattoForm({ form, upd, civici = [], onSave, onCancel, saveLabel = "S
       <FInput label="NOME *" value={form.nome} onChange={v => upd("nome", v)} placeholder="es. MARIO" />
       <FInput label="COGNOME *" value={form.cognome} onChange={v => upd("cognome", v)} placeholder="es. ROSSI" />
       <FInput label="TELEFONO *" value={form.telefono} onChange={v => upd("telefono", v)} placeholder="es. 333 1234567" type="tel" />
-      {/* RISPOSTO checkbox */}
+      {/* RISPOSTO doppio checkbox */}
       <div style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, letterSpacing: 1, marginBottom: 8, textTransform: "uppercase" }}>RISPOSTO</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 14, cursor: "pointer" }}
-          onClick={() => upd("risposto", form.risposto === "Y" ? "" : "Y")}>
-          {form.risposto === "Y"
-            ? <span style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(76,175,80,0.2)", border: "2px solid #4caf50", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#4caf50" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-            : <span style={{ width: 32, height: 32, borderRadius: 8, border: "2px solid #333", display: "flex", alignItems: "center", justifyContent: "center" }}></span>
-          }
-          <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 18, color: form.risposto === "Y" ? T.green : T.textMuted }}>
-            {form.risposto === "Y" ? "SI" : "—"}
-          </span>
+        <div style={{ display: "flex", gap: 12 }}>
+          <button className="tap" onClick={() => { upd("risposto", "Y"); upd("risposto_data", new Date().toISOString()); }}
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px", borderRadius: 8, cursor: "pointer", border: `2px solid ${form.risposto === "Y" ? "#4caf50" : "#2a2a2a"}`, background: form.risposto === "Y" ? "rgba(76,175,80,0.15)" : "transparent" }}>
+            <span style={{ width: 22, height: 22, borderRadius: 6, background: form.risposto === "Y" ? "rgba(76,175,80,0.3)" : "transparent", border: `2px solid ${form.risposto === "Y" ? "#4caf50" : "#444"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {form.risposto === "Y" && <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#4caf50" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+            </span>
+            <span style={{ fontWeight: 700, fontSize: 13, color: form.risposto === "Y" ? "#4caf50" : T.textMuted }}>RISPOSTO</span>
+          </button>
+          <button className="tap" onClick={() => { upd("risposto", "N"); upd("risposto_data", new Date().toISOString()); }}
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px", borderRadius: 8, cursor: "pointer", border: `2px solid ${form.risposto === "N" ? "#e05c5c" : "#2a2a2a"}`, background: form.risposto === "N" ? "rgba(224,92,92,0.15)" : "transparent" }}>
+            <span style={{ width: 22, height: 22, borderRadius: 6, background: form.risposto === "N" ? "rgba(224,92,92,0.3)" : "transparent", border: `2px solid ${form.risposto === "N" ? "#e05c5c" : "#444"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {form.risposto === "N" && <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#e05c5c" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+            </span>
+            <span style={{ fontWeight: 700, fontSize: 13, color: form.risposto === "N" ? "#e05c5c" : T.textMuted }}>NON RISPONDE</span>
+          </button>
         </div>
       </div>
       <SiNoSelector label="VUOTO" value={form.vuoto} onChange={v => upd("vuoto", v)} />
@@ -717,7 +772,7 @@ function ContattoForm({ form, upd, civici = [], onSave, onCancel, saveLabel = "S
   );
 }
 
-const EMPTY_FORM = (civicoId) => ({ nome: "", cognome: "", telefono: "", vuoto: "", stato: "", risposto: "", interno: "", civicoId });
+const EMPTY_FORM = (civicoId) => ({ nome: "", cognome: "", telefono: "", vuoto: "", stato: "", risposto: "", risposto_data: null, interno: "", civicoId });
 
 function RispostoIcon({ value }) {
   if (value === "Y" || value === true) return <span style={{ color: T.green, fontSize: 13, fontWeight: 700 }}>SI</span>;
@@ -762,6 +817,7 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
   const [adding, setAdding] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [form, setForm] = useState(EMPTY_FORM(civico?.id));
+  const [confirmDel, setConfirmDel] = useState(null);
   const contatti = (data.contatti||[]).filter(c => c.civicoId === civico?.id).filter(c => !search || (c.nome+" "+c.cognome+" "+c.telefono).toLowerCase().includes(search.toLowerCase()));
   const attCount = id => (data.attivita||[]).filter(a => a.contattoId === id).length;
   const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -769,7 +825,7 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
   const save = async () => {
     if (!form.nome.trim()) return;
     try {
-      const body = { nome: form.nome.toUpperCase(), cognome: form.cognome.toUpperCase(), telefono: form.telefono, risposto: form.risposto, vuoto: form.vuoto, stato: form.stato, interno: form.interno, civico_id: civico?.id };
+      const body = { nome: form.nome.toUpperCase(), cognome: form.cognome.toUpperCase(), telefono: form.telefono, risposto: form.risposto, risposto_data: form.risposto ? form.risposto_data : null, vuoto: form.vuoto, stato: form.stato, interno: form.interno, civico_id: civico?.id };
       const rows = await sbFetch("contatti", { method: "POST", body: JSON.stringify(body), token: user.token });
       const newId = rows[0]?.id || Date.now();
       const now = new Date();
@@ -784,7 +840,6 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
         attivita: [...(d.attivita||[]), ...nuoveAttivita],
       }));
     } catch(e) {
-      // fallback local
       const now = new Date();
       const fmt = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`;
       const tempId = Date.now();
@@ -798,6 +853,16 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
     }
     setForm(EMPTY_FORM(civico?.id));
     setAdding(false);
+  };
+
+  const doDeleteContatto = (c) => {
+    sbFetch(`attivita?contatto_id=eq.${c.id}`, { method: "DELETE", token: user.token, prefer: "return=minimal" }).catch(console.error);
+    sbFetch(`contatti?id=eq.${c.id}`, { method: "DELETE", token: user.token, prefer: "return=minimal" }).catch(console.error);
+    setData(d => ({ ...d,
+      contatti: d.contatti.filter(x => x.id !== c.id),
+      attivita: d.attivita.filter(x => x.contattoId !== c.id),
+    }));
+    setConfirmDel(null);
   };
 
   if (adding) return (
@@ -815,13 +880,12 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
         right={<><button onClick={() => setShowSearch(s => !s)} style={{ background:"none",border:"none",color:showSearch?T.accent:T.textMuted,cursor:"pointer",display:"flex",padding:4 }}><ISearch /></button><RefreshBtn onRefresh={() => { setSearch(""); setShowSearch(false); setRefreshKey(k=>k+1); }} /></>} />
       {showSearch && <div style={{padding:"8px 16px",borderBottom:`1px solid ${T.border}`}}><input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cerca nome, cognome, telefono..." style={{width:"100%",background:T.surfaceHigh,border:`1px solid ${T.border}`,borderRadius:8,color:T.text,fontSize:14,padding:"8px 12px",outline:"none"}}/></div>}
       <div>
-          <TH cols={["NOME","TEL","INT","RISP","ULT. ATT.","STATO","VUOTO",""]} widths="1.1fr 1fr 0.6fr 0.6fr 1fr 1fr 0.6fr 0.3fr" />
+          <TH cols={["NOME","TEL","INT","RISP","ULT. ATT.","STATO","VU",""]} widths="1.1fr 1fr 0.55fr 0.9fr 1fr 1fr 0.45fr 0.45fr" />
           {contatti.map((c, i) => (
             <div key={c.id}>
-              <div className="tap" onClick={() => onSelect(c)}
-                style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 0.6fr 0.6fr 1fr 1fr 0.6fr 0.3fr", alignItems: "center", cursor: "pointer", background: i % 2 === 0 ? T.row : T.rowAlt }}>
-                <span style={{ padding: "11px 8px", fontSize: 12, fontWeight: 700 }}>{c.nome}</span>
-                <span style={{ padding: "11px 4px", fontSize: 11, color: T.textMuted, textAlign: "center" }}>{c.telefono}</span>
+              <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 0.55fr 0.9fr 1fr 1fr 0.45fr 0.45fr", alignItems: "center", background: i % 2 === 0 ? T.row : T.rowAlt }}>
+                <span className="tap" onClick={() => onSelect(c)} style={{ padding: "11px 8px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{c.nome}</span>
+                <span className="tap" onClick={() => onSelect(c)} style={{ padding: "11px 4px", fontSize: 11, color: T.textMuted, textAlign: "center", cursor: "pointer" }}>{c.telefono}</span>
                 <span style={{ padding: "4px 2px", display: "flex", alignItems: "center", justifyContent: "center" }}
                   onClick={e => e.stopPropagation()}>
                   <select value={c.interno || ""} onChange={e => {
@@ -832,33 +896,38 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
                     {Array.from({length: 40}, (_, i) => i+1).map(n => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </span>
-                <span style={{ padding: "11px 4px", display: "flex", alignItems: "center", justifyContent: "center" }}
-                  onClick={e => {
+                <span style={{ padding: "4px 2px", display: "flex", alignItems: "center", justifyContent: "center", gap: 3 }}
+                  onClick={e => e.stopPropagation()}>
+                  {/* Verde - RISPOSTO */}
+                  <button className="tap" onClick={() => {
                     try {
-                      e.stopPropagation();
-                      const nuovoStato = c.risposto === "Y" ? "" : "Y";
-                      const commento = c.risposto === "Y" ? "NON RISPOSTO" : "RISPOSTO";
+                      const nuovoStato = "Y";
                       const now = new Date();
                       const fmt = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`;
-                      sbFetch(`contatti?id=eq.${c.id}`, { method: "PATCH", body: JSON.stringify({ risposto: nuovoStato }), token: user.token, prefer: "return=minimal" }).catch(console.error);
-                      sbFetch("attivita", { method: "POST", body: JSON.stringify({ commento, data_ora: fmt, utente: user?.email||"", contatto_id: c.id }), token: user.token }).catch(console.error);
-                      setData(d => ({
-                        ...d,
-                        contatti: d.contatti.map(x => x.id === c.id ? { ...x, risposto: nuovoStato } : x),
-                        attivita: [...(d.attivita||[]), { id: Date.now(), contattoId: c.id, commento, dataOra: fmt, utente: user?.email || "" }],
-                      }));
+                      const rdIso = now.toISOString();
+                      sbFetch(`contatti?id=eq.${c.id}`, { method: "PATCH", body: JSON.stringify({ risposto: nuovoStato, risposto_data: rdIso }), token: user.token, prefer: "return=minimal" }).catch(console.error);
+                      sbFetch("attivita", { method: "POST", body: JSON.stringify({ commento: "RISPOSTO", data_ora: fmt, utente: user?.email||"", contatto_id: c.id }), token: user.token }).catch(console.error);
+                      setData(d => ({ ...d, contatti: d.contatti.map(x => x.id === c.id ? { ...x, risposto: nuovoStato, risposto_data: rdIso } : x), attivita: [...(d.attivita||[]), { id: Date.now(), contattoId: c.id, commento: "RISPOSTO", dataOra: fmt, utente: user?.email || "" }] }));
                     } catch(err) { console.error("risposto toggle error:", err); }
-                  }}>
-                  {c.risposto === "Y"
-                    ? <span style={{ width: 24, height: 24, borderRadius: 6, background: "rgba(76,175,80,0.2)", border: "2px solid #4caf50", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#4caf50" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      </span>
-                    : c.risposto === "N"
-                    ? <span style={{ width: 24, height: 24, borderRadius: 6, background: "rgba(224,92,92,0.1)", border: "2px solid #444", display: "flex", alignItems: "center", justifyContent: "center", color: "#e05c5c", fontSize: 11, fontWeight: 700 }}>N</span>
-                    : <span style={{ width: 24, height: 24, borderRadius: 6, border: "2px solid #333", display: "flex", alignItems: "center", justifyContent: "center" }}></span>
-                  }
+                  }} style={{ background: c.risposto === "Y" ? "rgba(76,175,80,0.2)" : "none", border: `2px solid ${c.risposto === "Y" ? "#4caf50" : "#333"}`, borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
+                    {c.risposto === "Y" && <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#4caf50" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                  </button>
+                  {/* Rosso - NON RISPONDE */}
+                  <button className="tap" onClick={() => {
+                    try {
+                      const nuovoStato = "N";
+                      const now = new Date();
+                      const fmt = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`;
+                      const rdIso = now.toISOString();
+                      sbFetch(`contatti?id=eq.${c.id}`, { method: "PATCH", body: JSON.stringify({ risposto: nuovoStato, risposto_data: rdIso }), token: user.token, prefer: "return=minimal" }).catch(console.error);
+                      sbFetch("attivita", { method: "POST", body: JSON.stringify({ commento: "NON RISPONDE", data_ora: fmt, utente: user?.email||"", contatto_id: c.id }), token: user.token }).catch(console.error);
+                      setData(d => ({ ...d, contatti: d.contatti.map(x => x.id === c.id ? { ...x, risposto: nuovoStato, risposto_data: rdIso } : x), attivita: [...(d.attivita||[]), { id: Date.now(), contattoId: c.id, commento: "NON RISPONDE", dataOra: fmt, utente: user?.email || "" }] }));
+                    } catch(err) { console.error("risposto toggle error:", err); }
+                  }} style={{ background: c.risposto === "N" ? "rgba(224,92,92,0.15)" : "none", border: `2px solid ${c.risposto === "N" ? "#e05c5c" : "#333"}`, borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
+                    {c.risposto === "N" && <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#e05c5c" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+                  </button>
                 </span>
-                <span style={{ padding: "11px 4px", display: "flex", justifyContent: "center" }}><AttivitaData dataOra={getLastAttivita(data, c.id)?.dataOra} /></span>
+                <span className="tap" onClick={() => onSelect(c)} style={{ padding: "11px 4px", display: "flex", justifyContent: "center", cursor: "pointer" }}><AttivitaData dataOra={getLastAttivita(data, c.id)?.dataOra} /></span>
                 <span style={{ padding: "4px 2px", display: "flex", alignItems: "center", justifyContent: "center" }}
                   onClick={e => e.stopPropagation()}>
                   {(() => {
@@ -880,7 +949,10 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
                   })()}
                 </span>
                 <span style={{ padding: "11px 4px", fontSize: 11, textAlign: "center" }}>{c.vuoto === "Y" ? <span style={{color: "#4caf50", fontWeight: 700}}>SI</span> : c.vuoto === "N" ? <span style={{color: "#e05c5c", fontWeight: 700}}>NO</span> : ""}</span>
-                <span style={{ padding: "11px 4px", color: T.textDim, display: "flex", justifyContent: "center" }}><IArrow /></span>
+                <span style={{ padding: "4px 2px", display: "flex", justifyContent: "center" }} onClick={e => e.stopPropagation()}>
+                  <button className="tap" onClick={() => setConfirmDel(c)}
+                    style={{ background:"none", border:"none", color:T.accent, cursor:"pointer", padding:4, display:"flex" }}><ITrash /></button>
+                </span>
               </div>
               <HR />
             </div>
@@ -888,6 +960,13 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
         </div>
       <FabPlus onClick={() => setAdding(true)} />
       <BottomBar active="ufficio" onUfficio={onUfficio} />
+      {confirmDel && <Modal title="Elimina Contatto" onClose={() => setConfirmDel(null)}>
+        <div style={{ color: T.textMuted, fontSize: 13, marginBottom: 16 }}>Eliminare <b style={{color:T.text}}>{confirmDel.nome} {confirmDel.cognome}</b> e tutte le sue attività?</div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="tap" onClick={() => setConfirmDel(null)} style={{ flex:1, padding:"12px", background:"none", border:`1px solid ${T.border}`, borderRadius:8, color:T.textMuted, fontWeight:700, fontSize:13, cursor:"pointer" }}>ANNULLA</button>
+          <button className="tap" onClick={() => doDeleteContatto(confirmDel)} style={{ flex:1, padding:"12px", background:T.accent, border:"none", borderRadius:8, color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>ELIMINA</button>
+        </div>
+      </Modal>}
     </div>
   );
 }
@@ -896,18 +975,25 @@ function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack,
   const [modalAtt, setModalAtt] = useState(false);
   const [editing, setEditing] = useState(false);
   const [commento, setCommento] = useState("");
+  const [sortAsc, setSortAsc] = useState(false);
+  const [editAttModal, setEditAttModal] = useState(null);
+  const [editAttTesto, setEditAttTesto] = useState("");
+  const [confirmDelAtt, setConfirmDelAtt] = useState(null);
   const [editForm, setEditForm] = useState({
     nome: contattoInit.nome, cognome: contattoInit.cognome || "",
     telefono: contattoInit.telefono,
     vuoto: contattoInit.vuoto === "Y" ? "Y" : contattoInit.vuoto === "N" ? "N" : "",
     stato: contattoInit.stato || "",
     risposto: contattoInit.risposto === "Y" ? "Y" : contattoInit.risposto === "N" ? "N" : "",
+    risposto_data: contattoInit.risposto_data || null,
     interno: contattoInit.interno || "",
     civicoId: contattoInit.civicoId,
   });
 
   const contatto = (data.contatti||[]).find(c => c.id === contattoInit.id) || contattoInit;
-  const attivita = (data.attivita||[]).filter(a => a.contattoId === contatto.id).sort((a, b) => parseDataOra(b.dataOra) - parseDataOra(a.dataOra));
+  const attivita = (data.attivita||[]).filter(a => a.contattoId === contatto.id).sort((a, b) =>
+    sortAsc ? parseDataOra(a.dataOra) - parseDataOra(b.dataOra) : parseDataOra(b.dataOra) - parseDataOra(a.dataOra)
+  );
 
   const addAtt = async () => {
     if (!commento.trim()) return;
@@ -920,10 +1006,23 @@ function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack,
     setCommento(""); setModalAtt(false);
   };
 
+  const saveEditAtt = async () => {
+    if (!editAttTesto.trim()) return;
+    sbFetch(`attivita?id=eq.${editAttModal.id}`, { method: "PATCH", body: JSON.stringify({ commento: editAttTesto.trim() }), token: user.token, prefer: "return=minimal" }).catch(console.error);
+    setData(d => ({ ...d, attivita: d.attivita.map(a => a.id === editAttModal.id ? { ...a, commento: editAttTesto.trim() } : a) }));
+    setEditAttModal(null);
+  };
+
+  const doDeleteAtt = (a) => {
+    sbFetch(`attivita?id=eq.${a.id}`, { method: "DELETE", token: user.token, prefer: "return=minimal" }).catch(console.error);
+    setData(d => ({ ...d, attivita: d.attivita.filter(x => x.id !== a.id) }));
+    setConfirmDelAtt(null);
+  };
+
   const saveEdit = async () => {
     const updated = { ...contatto, ...editForm, nome: editForm.nome.toUpperCase(), cognome: editForm.cognome.toUpperCase() };
     try {
-      await sbFetch(`contatti?id=eq.${updated.id}`, { method: "PATCH", body: JSON.stringify({ nome: updated.nome, cognome: updated.cognome, telefono: updated.telefono, risposto: updated.risposto, vuoto: updated.vuoto, stato: updated.stato, interno: updated.interno }), token: user.token, prefer: "return=minimal" });
+      await sbFetch(`contatti?id=eq.${updated.id}`, { method: "PATCH", body: JSON.stringify({ nome: updated.nome, cognome: updated.cognome, telefono: updated.telefono, risposto: updated.risposto, risposto_data: updated.risposto ? updated.risposto_data : null, vuoto: updated.vuoto, stato: updated.stato, interno: updated.interno }), token: user.token, prefer: "return=minimal" });
     } catch(e) { console.error("Sync error", e); }
     setData(d => ({ ...d, contatti: d.contatti.map(c => c.id === updated.id ? updated : c) }));
     setEditing(false);
@@ -942,7 +1041,7 @@ function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack,
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, paddingBottom: 58 }} className="screen">
-      <TopBar title={contatto.nome} onBack={onBack} right={<><button style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", display: "flex", padding: 4 }}><ITrash /></button><button style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", display: "flex", padding: 4 }}><IDots /></button><RefreshBtn onRefresh={() => {}} /></>} />
+      <TopBar title={contatto.nome} onBack={onBack} right={<RefreshBtn onRefresh={() => {}} />} />
       <div style={{ padding: "14px 18px" }}>
         {[
           ["NOME", contatto.nome],
@@ -954,92 +1053,127 @@ function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack,
         ].map(([label, value, arrow, customColor]) => (
           <div key={label} style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, letterSpacing: 1, marginBottom: 3, textTransform: "uppercase" }}>{label}</div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 18, letterSpacing: 0.5,
-                color: customColor || (label === "VUOTO"
-                  ? (contatto.vuoto === "Y" ? T.green : contatto.vuoto === "N" ? T.accent : T.textMuted)
-                  : T.text) }}>
-                {value || "—"}
-              </span>
-              {arrow && <button className="tap" style={{ background: T.accent, border: "none", borderRadius: "50%", width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff" }}><IArrow /></button>}
-            </div>
+            <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 18, letterSpacing: 0.5,
+              color: customColor || (label === "VUOTO" ? (contatto.vuoto === "Y" ? T.green : contatto.vuoto === "N" ? T.accent : T.textMuted) : T.text) }}>
+              {value || "—"}
+            </span>
           </div>
         ))}
-
-        {/* INTERNO dropdown */}
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, letterSpacing: 1, marginBottom: 8, textTransform: "uppercase" }}>INTERNO</div>
-          <select value={contatto.interno || ""} onChange={e => {
-            setData(d => ({ ...d, contatti: d.contatti.map(x => x.id === contatto.id ? { ...x, interno: e.target.value } : x) }));
-          }} style={{ background: contatto.interno ? "rgba(224,92,92,0.1)" : "#1e1e1e", border: `1px solid ${contatto.interno ? "#e05c5c" : "#2a2a2a"}`, borderRadius: 8, color: contatto.interno ? "#e05c5c" : "#555", fontSize: 16, fontWeight: 700, padding: "10px 14px", width: "100%", outline: "none", cursor: "pointer" }}>
+          <select value={contatto.interno || ""} onChange={e => setData(d => ({ ...d, contatti: d.contatti.map(x => x.id === contatto.id ? { ...x, interno: e.target.value } : x) }))}
+            style={{ background: contatto.interno ? "rgba(224,92,92,0.1)" : "#1e1e1e", border: `1px solid ${contatto.interno ? "#e05c5c" : "#2a2a2a"}`, borderRadius: 8, color: contatto.interno ? "#e05c5c" : "#555", fontSize: 16, fontWeight: 700, padding: "10px 14px", width: "100%", outline: "none", cursor: "pointer" }}>
             <option value="">— nessuno —</option>
             {Array.from({length: 40}, (_, i) => i+1).map(n => <option key={n} value={n}>Interno {n}</option>)}
           </select>
         </div>
-
-        {/* RISPOSTO checkbox interattivo */}
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, letterSpacing: 1, marginBottom: 8, textTransform: "uppercase" }}>RISPOSTO</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}
-            onClick={() => {
+          <div style={{ display: "flex", gap: 12 }}>
+            {/* Verde */}
+            <button className="tap" onClick={() => {
               try {
-                const nuovoStato = contatto.risposto === "Y" ? "" : "Y";
-                const commentoTesto = contatto.risposto === "Y" ? "NON RISPOSTO" : "RISPOSTO";
                 const now = new Date();
                 const fmt = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`;
-                sbFetch(`contatti?id=eq.${contatto.id}`, { method: "PATCH", body: JSON.stringify({ risposto: nuovoStato }), token: user.token, prefer: "return=minimal" }).catch(console.error);
-                sbFetch("attivita", { method: "POST", body: JSON.stringify({ commento: commentoTesto, data_ora: fmt, utente: user?.email||"", contatto_id: contatto.id }), token: user.token }).catch(console.error);
-                setData(d => ({
-                  ...d,
-                  contatti: d.contatti.map(x => x.id === contatto.id ? { ...x, risposto: nuovoStato } : x),
-                  attivita: [...(d.attivita||[]), { id: Date.now(), contattoId: contatto.id, commento: commentoTesto, dataOra: fmt, utente: user?.email || "" }],
-                }));
+                const rdIso = now.toISOString();
+                sbFetch(`contatti?id=eq.${contatto.id}`, { method: "PATCH", body: JSON.stringify({ risposto: "Y", risposto_data: rdIso }), token: user.token, prefer: "return=minimal" }).catch(console.error);
+                sbFetch("attivita", { method: "POST", body: JSON.stringify({ commento: "RISPOSTO", data_ora: fmt, utente: user?.email||"", contatto_id: contatto.id }), token: user.token }).catch(console.error);
+                setData(d => ({ ...d, contatti: d.contatti.map(x => x.id === contatto.id ? { ...x, risposto: "Y", risposto_data: rdIso } : x), attivita: [...(d.attivita||[]), { id: Date.now(), contattoId: contatto.id, commento: "RISPOSTO", dataOra: fmt, utente: user?.email || "" }] }));
               } catch(err) { console.error("risposto error:", err); }
-            }}
-            style={{ cursor: "pointer" }}>
-            {contatto.risposto === "Y"
-              ? <span style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(76,175,80,0.2)", border: "2px solid #4caf50", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#4caf50" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                </span>
-              : <span style={{ width: 32, height: 32, borderRadius: 8, border: "2px solid #333", display: "flex", alignItems: "center", justifyContent: "center" }}></span>
-            }
-            <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 18, color: contatto.risposto === "Y" ? T.green : T.textMuted }}>
-              {contatto.risposto === "Y" ? "SI" : "—"}
-            </span>
+            }} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "12px", borderRadius: 10, cursor: "pointer", border: `2px solid ${contatto.risposto === "Y" ? "#4caf50" : "#2a2a2a"}`, background: contatto.risposto === "Y" ? "rgba(76,175,80,0.15)" : "transparent" }}>
+              <span style={{ width: 28, height: 28, borderRadius: 7, background: contatto.risposto === "Y" ? "rgba(76,175,80,0.3)" : "transparent", border: `2px solid ${contatto.risposto === "Y" ? "#4caf50" : "#444"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {contatto.risposto === "Y" && <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="#4caf50" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+              </span>
+              <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 16, color: contatto.risposto === "Y" ? "#4caf50" : T.textMuted }}>RISPOSTO</span>
+            </button>
+            {/* Rosso */}
+            <button className="tap" onClick={() => {
+              try {
+                const now = new Date();
+                const fmt = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`;
+                const rdIso = now.toISOString();
+                sbFetch(`contatti?id=eq.${contatto.id}`, { method: "PATCH", body: JSON.stringify({ risposto: "N", risposto_data: rdIso }), token: user.token, prefer: "return=minimal" }).catch(console.error);
+                sbFetch("attivita", { method: "POST", body: JSON.stringify({ commento: "NON RISPONDE", data_ora: fmt, utente: user?.email||"", contatto_id: contatto.id }), token: user.token }).catch(console.error);
+                setData(d => ({ ...d, contatti: d.contatti.map(x => x.id === contatto.id ? { ...x, risposto: "N", risposto_data: rdIso } : x), attivita: [...(d.attivita||[]), { id: Date.now(), contattoId: contatto.id, commento: "NON RISPONDE", dataOra: fmt, utente: user?.email || "" }] }));
+              } catch(err) { console.error("risposto error:", err); }
+            }} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "12px", borderRadius: 10, cursor: "pointer", border: `2px solid ${contatto.risposto === "N" ? "#e05c5c" : "#2a2a2a"}`, background: contatto.risposto === "N" ? "rgba(224,92,92,0.15)" : "transparent" }}>
+              <span style={{ width: 28, height: 28, borderRadius: 7, background: contatto.risposto === "N" ? "rgba(224,92,92,0.3)" : "transparent", border: `2px solid ${contatto.risposto === "N" ? "#e05c5c" : "#444"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {contatto.risposto === "N" && <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="#e05c5c" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+              </span>
+              <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 16, color: contatto.risposto === "N" ? "#e05c5c" : T.textMuted }}>NON RISPONDE</span>
+            </button>
           </div>
+          {contatto.risposto_data && <div style={{ fontSize: 10, color: T.textDim, marginTop: 6, textAlign: "right" }}>
+            aggiornato {new Date(contatto.risposto_data).toLocaleDateString("it-IT")} · scade {new Date(new Date(contatto.risposto_data).getTime() + 60*24*60*60*1000).toLocaleDateString("it-IT")}
+          </div>}
         </div>
       </div>
       <HR />
-      <SectionTag label="ULTIMA ATTIVITÀ" count={attivita.length} />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px 7px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>ATTIVITÀ</span>
+          <span style={{ background: T.surfaceHigh, color: T.text, borderRadius: 4, fontSize: 11, fontWeight: 700, padding: "1px 7px" }}>{attivita.length}</span>
+        </div>
+        <button className="tap" onClick={() => setSortAsc(s => !s)}
+          style={{ background: "none", border: `1px solid ${T.border}`, borderRadius: 6, padding: "4px 10px", color: T.textMuted, fontSize: 10, fontWeight: 700, cursor: "pointer", letterSpacing: 1 }}>
+          {sortAsc ? "DATA ↑" : "DATA ↓"}
+        </button>
+      </div>
       <HR />
-      <TH cols={["COMMENTO", "DATA E ORA ↓", "UTENTE"]} widths="1.6fr 1.3fr 1fr" />
+      <TH cols={["COMMENTO", "DATA E ORA", "UTENTE", ""]} widths="1.6fr 1.1fr 0.9fr 0.6fr" />
       {attivita.map((a, i) => (
         <div key={a.id}>
-          <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1.3fr 1fr", background: i % 2 === 0 ? T.row : T.rowAlt }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1.1fr 0.9fr 0.6fr", alignItems: "center", background: i % 2 === 0 ? T.row : T.rowAlt }}>
             <span style={{ padding: "12px 10px", fontSize: 13 }}>{a.commento}</span>
-            <span style={{ padding: "12px 10px", fontSize: 11, color: T.textMuted }}>{a.dataOra}</span>
-            <span style={{ padding: "12px 10px", fontSize: 10, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.utente}</span>
+            <span style={{ padding: "12px 6px", fontSize: 11, color: T.textMuted }}>{a.dataOra}</span>
+            <span style={{ padding: "12px 6px", fontSize: 10, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.utente}</span>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <button className="tap" onClick={() => { setEditAttModal(a); setEditAttTesto(a.commento); }}
+                style={{ background:"none", border:"none", color:T.textMuted, cursor:"pointer", padding:4, display:"flex" }}><IEditPen /></button>
+              <button className="tap" onClick={() => setConfirmDelAtt(a)}
+                style={{ background:"none", border:"none", color:T.accent, cursor:"pointer", padding:4, display:"flex" }}><ITrash /></button>
+            </div>
           </div>
           <HR />
         </div>
       ))}
       <ActionRow onAdd={() => setModalAtt(true)} />
-      <FAB onClick={() => setEditing(true)} />
+      <button className="tap" onClick={() => setEditing(true)}
+        style={{ position: "fixed", bottom: 72, left: 18, width: 50, height: 50, borderRadius: "50%", background: T.surfaceHigh, border: `1px solid ${T.border}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: T.textMuted, zIndex: 99 }}>
+        <IEditPen />
+      </button>
       <BottomBar active="ufficio" onUfficio={onUfficio} />
+
       {modalAtt && <Modal title="Nuova Attività" onClose={() => setModalAtt(false)}>
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, letterSpacing: 1, marginBottom: 6, textTransform: "uppercase" }}>COMMENTO</div>
           <textarea value={commento} onChange={e => setCommento(e.target.value)} placeholder="Inserisci nota..." rows={4}
             style={{ width: "100%", padding: "10px 12px", background: T.surfaceHigh, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 14, outline: "none", resize: "none", fontFamily: "'Barlow', sans-serif" }} />
         </div>
-        <div style={{ padding: "8px 12px", background: T.surfaceHigh, borderRadius: 8, marginBottom: 14, fontSize: 12, color: T.textMuted }}>
-          👤 {user.name} · {user.email}
-        </div>
+        <div style={{ padding: "8px 12px", background: T.surfaceHigh, borderRadius: 8, marginBottom: 14, fontSize: 12, color: T.textMuted }}>👤 {user.email}</div>
         <PrimaryBtn label="SALVA ATTIVITÀ" onClick={addAtt} />
+      </Modal>}
+
+      {editAttModal && <Modal title="Modifica Attività" onClose={() => setEditAttModal(null)}>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, letterSpacing: 1, marginBottom: 6, textTransform: "uppercase" }}>COMMENTO</div>
+          <textarea value={editAttTesto} onChange={e => setEditAttTesto(e.target.value)} rows={4}
+            style={{ width: "100%", padding: "10px 12px", background: T.surfaceHigh, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 14, outline: "none", resize: "none", fontFamily: "'Barlow', sans-serif" }} />
+        </div>
+        <PrimaryBtn label="SALVA" onClick={saveEditAtt} />
+      </Modal>}
+
+      {confirmDelAtt && <Modal title="Elimina Attività" onClose={() => setConfirmDelAtt(null)}>
+        <div style={{ color: T.textMuted, fontSize: 13, marginBottom: 16 }}>Eliminare l'attività <b style={{color:T.text}}>"{confirmDelAtt.commento}"</b>?</div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="tap" onClick={() => setConfirmDelAtt(null)} style={{ flex:1, padding:"12px", background:"none", border:`1px solid ${T.border}`, borderRadius:8, color:T.textMuted, fontWeight:700, fontSize:13, cursor:"pointer" }}>ANNULLA</button>
+          <button className="tap" onClick={() => doDeleteAtt(confirmDelAtt)} style={{ flex:1, padding:"12px", background:T.accent, border:"none", borderRadius:8, color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>ELIMINA</button>
+        </div>
       </Modal>}
     </div>
   );
 }
+
 
 /* ─── ROOT APP ───────────────────────────────────────────────────────────── */
 
@@ -1084,7 +1218,16 @@ export default function App() {
           zone: zone.map(z => ({ id: z.id, nome: z.nome, ufficioId: z.ufficio_id })),
           vie: vie.map(v => ({ id: v.id, nome: v.nome, zonaId: v.zona_id })),
           civici: civici.map(c => ({ id: c.id, numero: c.numero, viaId: c.via_id })),
-          contatti: contatti.map(c => ({ id: c.id, nome: c.nome, cognome: c.cognome, telefono: c.telefono, risposto: c.risposto||"", vuoto: c.vuoto||"", stato: c.stato||"", interno: c.interno||"", civicoId: c.civico_id })),
+          contatti: contatti.map(c => {
+            const rd = c.risposto_data ? new Date(c.risposto_data) : null;
+            const expired = rd && (new Date() - rd) > 60 * 24 * 60 * 60 * 1000;
+            return {
+              id: c.id, nome: c.nome, cognome: c.cognome, telefono: c.telefono,
+              risposto: expired ? "" : (c.risposto||""),
+              risposto_data: expired ? null : (c.risposto_data||null),
+              vuoto: c.vuoto||"", stato: c.stato||"", interno: c.interno||"", civicoId: c.civico_id
+            };
+          }),
           attivita: attivita.map(a => ({ id: a.id, commento: a.commento, dataOra: a.data_ora, utente: a.utente, contattoId: a.contatto_id })),
         });
         setDbLoaded(true);
