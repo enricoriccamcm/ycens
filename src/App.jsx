@@ -103,6 +103,32 @@ const css = `
   ::-webkit-scrollbar { width: 3px; height: 3px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 2px; }
+
+  /* ── RESPONSIVE ── */
+  .app-container { max-width: 480px; margin: 0 auto; min-height: 100vh; }
+
+  @media (min-width: 768px) {
+    .app-container { max-width: 768px; }
+    .topbar-title { font-size: 20px !important; }
+    .row-text { font-size: 15px !important; }
+    .row-text-sm { font-size: 13px !important; }
+    .th-text { font-size: 12px !important; }
+    .section-pad { padding: 16px 24px !important; }
+    .fab-edit { bottom: 80px !important; left: 24px !important; width: 56px !important; height: 56px !important; }
+    .fab-plus { bottom: 80px !important; right: 24px !important; width: 56px !important; height: 56px !important; }
+    .bottombar { max-width: 768px !important; }
+    .modal-inner { max-width: 500px !important; border-radius: 16px 16px 0 0; }
+  }
+
+  @media (min-width: 1024px) {
+    .app-container { max-width: 960px; }
+    .topbar-title { font-size: 22px !important; }
+    .row-text { font-size: 16px !important; }
+    .row-text-sm { font-size: 14px !important; }
+    .th-text { font-size: 13px !important; }
+    .bottombar { max-width: 960px !important; }
+    .modal-inner { max-width: 600px !important; }
+  }
 `;
 
 /* ─── SVG ICONS ──────────────────────────────────────────────────────────── */
@@ -159,14 +185,14 @@ const LogoFull = ({ height = 36 }) => (
 function TopBar({ title, subtitle, onBack, right, onLogout }) {
   return (
     <div style={{ background: T.surface, borderBottom: `1px solid ${T.border}`, position: "sticky", top: 0, zIndex: 100 }}>
-      <div style={{ display: "flex", alignItems: "center", height: 52, padding: "0 14px", gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 18px", gap: 10 }}>
         {onBack
           ? <button className="tap" onClick={onBack} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: "4px 6px 4px 0", display: "flex" }}><IBack /></button>
           : <Logo />
         }
         <div style={{ flex: 1, minWidth: 0 }}>
           {subtitle && <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 600, letterSpacing: 1 }}>{subtitle}</div>}
-          <div style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: subtitle ? 16 : 15, letterSpacing: 1, textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</div>
+          <div className="topbar-title" style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: subtitle ? 17 : 16, letterSpacing: 1, textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</div>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center", color: T.textMuted }}>
           {right}
@@ -179,7 +205,7 @@ function TopBar({ title, subtitle, onBack, right, onLogout }) {
 
 function BottomBar({ active, onUfficio }) {
   return (
-    <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, maxWidth: 480, margin: "0 auto", background: T.surface, borderTop: `1px solid ${T.border}`, display: "flex", zIndex: 100 }}>
+    <div className="bottombar" style={{ position: "fixed", bottom: 0, left: 0, right: 0, maxWidth: 480, margin: "0 auto", background: T.surface, borderTop: `1px solid ${T.border}`, display: "flex", zIndex: 100 }}>
       <button className="tap" onClick={onUfficio}
         style={{ flex: 1, background: "none", border: "none", color: T.accent, cursor: "pointer", padding: "9px 0 13px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, fontSize: 10, fontWeight: 700, letterSpacing: 1 }}>
         <IUfficio />
@@ -192,7 +218,7 @@ function BottomBar({ active, onUfficio }) {
 
 function FAB({ onClick }) {
   return (
-    <button className="tap" onClick={onClick}
+    <button className="tap fab-plus" onClick={onClick}
       style={{ position: "fixed", bottom: 72, right: 18, width: 50, height: 50, borderRadius: "50%", background: T.accent, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", boxShadow: "0 4px 18px rgba(224,92,92,0.45)", zIndex: 99 }}>
       <IEditPen />
     </button>
@@ -201,7 +227,7 @@ function FAB({ onClick }) {
 
 function FabPlus({ onClick }) {
   return (
-    <button className="tap" onClick={onClick}
+    <button className="tap fab-plus" onClick={onClick}
       style={{ position: "fixed", bottom: 72, right: 18, width: 50, height: 50, borderRadius: "50%", background: T.accent, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", boxShadow: "0 4px 18px rgba(224,92,92,0.45)", zIndex: 99 }}>
       <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
         <path d="M12 5v14M5 12h14" />
@@ -214,7 +240,7 @@ function Modal({ title, onClose, children }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 200, display: "flex", alignItems: "flex-end" }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: T.surface, borderRadius: "16px 16px 0 0", width: "100%", maxWidth: 480, margin: "0 auto", padding: "20px 20px 40px", animation: "slideUp 0.22s ease", borderTop: `1px solid ${T.border}` }}>
+      <div className="modal-inner" style={{ background: T.surface, borderRadius: "16px 16px 0 0", width: "100%", maxWidth: 480, margin: "0 auto", padding: "20px 20px 40px", animation: "slideUp 0.22s ease", borderTop: `1px solid ${T.border}` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 15, letterSpacing: 1, textTransform: "uppercase" }}>{title}</span>
           <button className="tap" onClick={onClose} style={{ background: T.surfaceHigh, border: "none", color: T.textMuted, borderRadius: 6, padding: "4px 8px", cursor: "pointer", display: "flex" }}><IX /></button>
@@ -764,7 +790,7 @@ function ContattoForm({ form, upd, civici = [], onSave, onCancel, saveLabel = "S
         </select>
       </div>
       <StatoSelector value={form.stato} onChange={v => upd("stato", v)} />
-      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, maxWidth: 480, margin: "0 auto", display: "flex", background: T.surface, borderTop: `1px solid ${T.border}`, padding: "14px 24px" }}>
+      <div className="bottombar" style={{ position: "fixed", bottom: 0, left: 0, right: 0, maxWidth: 480, margin: "0 auto", display: "flex", background: T.surface, borderTop: `1px solid ${T.border}`, padding: "14px 24px" }}>
         <button className="tap" onClick={onCancel} style={{ flex: 1, background: "none", border: "none", color: T.textMuted, fontWeight: 700, fontSize: 14, cursor: "pointer", letterSpacing: 1 }}>CANCELLA</button>
         <button className="tap" onClick={onSave} style={{ flex: 1, background: "none", border: "none", color: T.accent, fontWeight: 700, fontSize: 14, cursor: "pointer", letterSpacing: 1 }}>{saveLabel}</button>
       </div>
@@ -1138,7 +1164,7 @@ function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack,
         </div>
       ))}
       <ActionRow onAdd={() => setModalAtt(true)} />
-      <button className="tap" onClick={() => setEditing(true)}
+      <button className="tap fab-edit" onClick={() => setEditing(true)}
         style={{ position: "fixed", bottom: 72, left: 18, width: 50, height: 50, borderRadius: "50%", background: T.surfaceHigh, border: `1px solid ${T.border}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: T.textMuted, zIndex: 99 }}>
         <IEditPen />
       </button>
@@ -1248,7 +1274,7 @@ export default function App() {
   if (!user) return <><style>{css}</style><LoginScreen onLogin={setUser} /></>;
 
   return (
-    <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh" }}>
+    <div className="app-container">
       <style>{css}</style>
       {!cur && <UfficiScreen data={data} user={user} onLogout={() => setUser(null)} onSelect={u => push("zone", { ufficio: u })} />}
       {cur?.screen === "zone"     && <ZoneScreen     data={data} setData={setData} ufficio={cur.payload.ufficio} onBack={pop} onUfficio={home} onSelect={z => push("vie",      { zona: z, ufficio: cur.payload.ufficio })} />}
