@@ -811,19 +811,20 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
                 </span>
                 <span style={{ padding: "11px 4px", display: "flex", alignItems: "center", justifyContent: "center" }}
                   onClick={e => {
-                    e.stopPropagation();
-                    const nuovoStato = c.risposto === "Y" ? "" : "Y";
-                    const commento = c.risposto === "Y" ? "NON RISPOSTO" : "RISPOSTO";
-                    const now = new Date();
-                    const fmt = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`;
-                    // Sync to Supabase
-                    sbFetch(`contatti?id=eq.${c.id}`, { method: "PATCH", body: JSON.stringify({ risposto: nuovoStato }), token: user.token, prefer: "return=minimal" }).catch(console.error);
-                    sbFetch("attivita", { method: "POST", body: JSON.stringify({ commento, data_ora: fmt, utente: user?.email||"", contatto_id: c.id }), token: user.token }).catch(console.error);
-                    setData(d => ({
-                      ...d,
-                      contatti: d.contatti.map(x => x.id === c.id ? { ...x, risposto: nuovoStato } : x),
-                      attivita: [...d.attivita, { id: Date.now(), contattoId: c.id, commento, dataOra: fmt, utente: user?.email || "" }],
-                    }));
+                    try {
+                      e.stopPropagation();
+                      const nuovoStato = c.risposto === "Y" ? "" : "Y";
+                      const commento = c.risposto === "Y" ? "NON RISPOSTO" : "RISPOSTO";
+                      const now = new Date();
+                      const fmt = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`;
+                      sbFetch(`contatti?id=eq.${c.id}`, { method: "PATCH", body: JSON.stringify({ risposto: nuovoStato }), token: user.token, prefer: "return=minimal" }).catch(console.error);
+                      sbFetch("attivita", { method: "POST", body: JSON.stringify({ commento, data_ora: fmt, utente: user?.email||"", contatto_id: c.id }), token: user.token }).catch(console.error);
+                      setData(d => ({
+                        ...d,
+                        contatti: d.contatti.map(x => x.id === c.id ? { ...x, risposto: nuovoStato } : x),
+                        attivita: [...(d.attivita||[]), { id: Date.now(), contattoId: c.id, commento, dataOra: fmt, utente: user?.email || "" }],
+                      }));
+                    } catch(err) { console.error("risposto toggle error:", err); }
                   }}>
                   {c.risposto === "Y"
                     ? <span style={{ width: 24, height: 24, borderRadius: 6, background: "rgba(76,175,80,0.2)", border: "2px solid #4caf50", display: "flex", alignItems: "center", justifyContent: "center" }}>
