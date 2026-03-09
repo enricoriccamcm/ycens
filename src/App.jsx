@@ -261,11 +261,12 @@ function Modal({ title, onClose, children }) {
 }
 
 function FInput({ label, value, onChange, placeholder, type = "text" }) {
+  const noUpper = type === "tel" || type === "email" || type === "password";
   return (
     <div style={{ marginBottom: 12 }}>
       {label && <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, letterSpacing: 1, marginBottom: 5, textTransform: "uppercase" }}>{label}</div>}
       <input type={type} value={value}
-        onChange={e => onChange(type === "tel" ? e.target.value : e.target.value.toUpperCase())}
+        onChange={e => onChange(noUpper ? e.target.value : e.target.value.toUpperCase())}
         placeholder={placeholder}
         style={{ width: "100%", padding: "10px 12px", background: T.surfaceHigh, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 14, outline: "none" }} />
     </div>
