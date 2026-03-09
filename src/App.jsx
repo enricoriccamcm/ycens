@@ -954,6 +954,7 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
   const [attModal, setAttModal] = useState(null); // attività da visualizzare
   // Anti-spam risposto
   const rispostoLog = useRef({});
+  const isUserAdmin = user.role === "admin" || user.email === "enricoriccamcm@gmail.com";
   const [sortContatti, setSortContatti] = useState(""); // "" | "interno_asc" | "interno_desc" | "data_asc" | "data_desc"
 
   const contattiFiltered = (data.contatti||[])
@@ -1072,7 +1073,7 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
           <div key={c.id}>
             <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr 0.45fr 0.45fr 0.9fr 0.9fr 0.9fr 0.8fr 0.4fr", alignItems: "center", background: rowBg, opacity: isBlocked ? 0.5 : 1 }}>
               {/* NOME */}
-              <span className="tap" onClick={() => !isBlocked && onSelect(c)} style={{ padding: "10px 6px", fontSize: 12, fontWeight: 700, cursor: isBlocked ? "default" : "pointer", color: isBlocked ? "#555" : T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span className="tap" onClick={() => (!isBlocked || isUserAdmin) && onSelect(c)} style={{ padding: "10px 6px", fontSize: 12, fontWeight: 700, cursor: (isBlocked && !isUserAdmin) ? "default" : "pointer", color: isBlocked ? "#888" : T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {isBlocked && <ILock />} {c.nome}
               </span>
               {/* TEL */}
