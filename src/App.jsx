@@ -1209,7 +1209,7 @@ function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack,
 
   const contatto = (data.contatti||[]).find(c => c.id === contattoInit.id) || contattoInit;
   const isBlocked = contatto.bloccato;
-  const isAdmin = user.role === "admin";
+  const isAdmin = user.role === "admin" || user.email === "enricoriccamcm@gmail.com";
 
   const attivita = (data.attivita||[]).filter(a => a.contattoId === contatto.id).sort((a, b) =>
     sortAsc ? parseDataOra(a.dataOra) - parseDataOra(b.dataOra) : parseDataOra(b.dataOra) - parseDataOra(a.dataOra)
@@ -1254,8 +1254,10 @@ function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack,
     setConfirmBlock(false);
   };
 
-  const doUnblock = () => {
-    sbFetch(`contatti?id=eq.${contatto.id}`, { method: "PATCH", body: JSON.stringify({ bloccato: false }), token: user.token, prefer: "return=minimal" }).catch(console.error);
+  const doUnblock = async () => {
+    try {
+      await sbFetch(`contatti?id=eq.${contatto.id}`, { method: "PATCH", body: JSON.stringify({ bloccato: false }), token: user.token, prefer: "return=minimal" });
+    } catch(e) { console.error("unblock error:", e); }
     setData(d => ({ ...d, contatti: d.contatti.map(x => x.id === contatto.id ? { ...x, bloccato: false } : x) }));
     setConfirmUnblock(false);
   };
