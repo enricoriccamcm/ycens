@@ -491,6 +491,8 @@ function ZoneScreen({ data, setData, ufficio, onSelect, onBack, onUfficio, user 
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null);
+  const [editModal, setEditModal] = useState(null);
+  const [editNome, setEditNome] = useState("");
   const isAdmin = user.role === "admin";
   const zone = (data.zone||[]).filter(z => z.ufficioId === ufficio.id).filter(z => !search || z.nome.toLowerCase().includes(search.toLowerCase()));
   const vieCount = id => (data.vie||[]).filter(v => v.zonaId === id).length;
@@ -499,6 +501,13 @@ function ZoneScreen({ data, setData, ufficio, onSelect, onBack, onUfficio, user 
     if (!nome.trim()) return;
     setData(d => ({ ...d, zone: [...(d.zone||[]), { id: Date.now(), nome: nome.trim().toUpperCase(), ufficioId: ufficio.id }] }));
     setNome(""); setModal(false);
+  };
+
+  const saveEdit = () => {
+    if (!editNome.trim()) return;
+    sbFetch(`zone?id=eq.${editModal.id}`, { method: "PATCH", body: JSON.stringify({ nome: editNome.trim().toUpperCase() }), prefer: "return=minimal" }).catch(console.error);
+    setData(d => ({ ...d, zone: d.zone.map(z => z.id === editModal.id ? { ...z, nome: editNome.trim().toUpperCase() } : z) }));
+    setEditModal(null);
   };
 
   const doDelete = (z) => {
@@ -515,14 +524,16 @@ function ZoneScreen({ data, setData, ufficio, onSelect, onBack, onUfficio, user 
       {showSearch && <div style={{padding:"8px 16px",borderBottom:`1px solid ${T.border}`}}><input autoFocus value={search} onChange={e=>setSearch(e.target.value.toUpperCase())} placeholder="Cerca zona..." style={{width:"100%",background:T.surfaceHigh,border:`1px solid ${T.border}`,borderRadius:8,color:T.text,fontSize:14,padding:"8px 12px",outline:"none"}}/></div>}
       <SectionTag label="ZONA" count={zone.length} />
       <HR />
-      <TH cols={isAdmin ? ["NOME ZONA", "VIE", ""] : ["NOME ZONA", "VIE"]} widths={isAdmin ? "1fr 1fr 0.5fr" : "1fr 1fr"} />
+      <TH cols={isAdmin ? ["NOME ZONA", "VIE", ""] : ["NOME ZONA", "VIE"]} widths={isAdmin ? "1fr 1fr 0.8fr" : "1fr 1fr"} />
       {zone.map((z, i) => (
         <div key={z.id}>
-          <div style={{ display: "grid", gridTemplateColumns: isAdmin ? "1fr 1fr 0.5fr" : "1fr 1fr", alignItems: "center", background: i % 2 === 0 ? T.row : T.rowAlt }}>
+          <div style={{ display: "grid", gridTemplateColumns: isAdmin ? "1fr 1fr 0.8fr" : "1fr 1fr", alignItems: "center", background: i % 2 === 0 ? T.row : T.rowAlt }}>
             <span className="tap" onClick={() => onSelect(z)} style={{ padding: "14px 10px", fontSize: 14, fontWeight: 600, textAlign: "center", cursor: "pointer" }}>{z.nome}</span>
             <span className="tap" onClick={() => onSelect(z)} style={{ padding: "14px 10px", fontSize: 14, fontWeight: 800, textAlign: "center", cursor: "pointer", color: T.textMuted }}>{vieCount(z.id) || "—"}</span>
             {isAdmin && (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 2 }} onClick={e => e.stopPropagation()}>
+                <button className="tap" onClick={() => { setEditModal(z); setEditNome(z.nome); }}
+                  style={{ background:"none", border:"none", color:T.textMuted, cursor:"pointer", padding:6, display:"flex" }}><IEditPen /></button>
                 <button className="tap" onClick={() => setConfirmDel(z)}
                   style={{ background:"none", border:"none", color: vieCount(z.id) > 0 ? T.textDim : T.accent, cursor:"pointer", padding:6, display:"flex" }}><ITrash /></button>
               </div>
@@ -538,6 +549,11 @@ function ZoneScreen({ data, setData, ufficio, onSelect, onBack, onUfficio, user 
       {modal && isAdmin && <Modal title="Nuova Zona" onClose={() => setModal(false)}>
         <FInput label="Nome Zona" value={nome} onChange={setNome} placeholder="es. ACILIA C" />
         <PrimaryBtn label="AGGIUNGI" onClick={add} />
+      </Modal>}
+
+      {editModal && isAdmin && <Modal title="Modifica Zona" onClose={() => setEditModal(null)}>
+        <FInput label="Nome Zona" value={editNome} onChange={setEditNome} placeholder="es. ACILIA C" />
+        <PrimaryBtn label="SALVA" onClick={saveEdit} />
       </Modal>}
 
       {confirmDel && <Modal title="Elimina Zona" onClose={() => setConfirmDel(null)}>
@@ -565,6 +581,12 @@ function VieScreen({ data, setData, zona, onSelect, onBack, onUfficio }) {
   const [confirmDel, setConfirmDel] = useState(null);
   const vie = (data.vie||[]).filter(v => v.zonaId === zona.id).filter(v => !search || v.nome.toLowerCase().includes(search.toLowerCase()));
   const civiciCount = id => (data.civici||[]).filter(c => c.viaId === id).length;
+  const contattiViaStats = id => {
+    const civiciDiQuesta = (data.civici||[]).filter(c => c.viaId === id).map(c => c.id);
+    const tutti = (data.contatti||[]).filter(c => civiciDiQuesta.includes(c.civicoId));
+    const risposti = tutti.filter(c => c.risposto === "Y").length;
+    return { totale: tutti.length, risposti };
+  };
 
   const add = () => {
     if (!nome.trim()) return;
@@ -593,14 +615,22 @@ function VieScreen({ data, setData, zona, onSelect, onBack, onUfficio }) {
       {showSearch && <div style={{padding:"8px 16px",borderBottom:`1px solid ${T.border}`}}><input autoFocus value={search} onChange={e=>setSearch(e.target.value.toUpperCase())} placeholder="Cerca via..." style={{width:"100%",background:T.surfaceHigh,border:`1px solid ${T.border}`,borderRadius:8,color:T.text,fontSize:14,padding:"8px 12px",outline:"none"}}/></div>}
       <SectionTag label="VIE" count={vie.length} />
       <HR />
-      <TH cols={["NOME VIA", "CIVICI", ""]} widths="1fr 0.6fr 0.7fr" />
+      <TH cols={["NOME VIA", "CIV.", "CONT.", ""]} widths="1fr 0.5fr 0.8fr 0.6fr" />
       {vie.map((v, i) => {
         const nc = civiciCount(v.id);
+        const { totale, risposti } = contattiViaStats(v.id);
+        const pieno = totale > 0 && risposti === totale;
+        const nessuno = totale === 0;
         return (
           <div key={v.id}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 0.6fr 0.7fr", alignItems: "center", background: i % 2 === 0 ? T.row : T.rowAlt }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 0.5fr 0.8fr 0.6fr", alignItems: "center", background: i % 2 === 0 ? T.row : T.rowAlt }}>
               <span className="tap" onClick={() => onSelect(v)} style={{ padding: "14px 10px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>{v.nome}</span>
               <span className="tap" onClick={() => onSelect(v)} style={{ padding: "14px 6px", fontSize: 13, color: T.textMuted, textAlign: "center", cursor: "pointer" }}>{nc || "—"}</span>
+              <span className="tap" onClick={() => onSelect(v)} style={{ padding: "5px 4px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: pieno ? "rgba(76,175,80,0.15)" : nessuno ? "transparent" : "rgba(255,255,255,0.04)", border: `1px solid ${pieno ? "#4caf50" : nessuno ? "#2a2a2a" : "#333"}`, borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: pieno ? "#4caf50" : nessuno ? "#444" : T.textMuted, minWidth: 48, justifyContent: "center" }}>
+                  {nessuno ? <span style={{fontSize:10}}>—</span> : <>{pieno && <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="#4caf50" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}<span>{risposti}</span><span style={{color:"#444",fontWeight:400}}>/</span><span>{totale}</span></>}
+                </span>
+              </span>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 2, padding: "0 8px" }} onClick={e => e.stopPropagation()}>
                 <button className="tap" onClick={() => { setEditModal(v); setEditNome(v.nome); }}
                   style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", padding: 6, display: "flex" }}><IEditPen /></button>
@@ -647,7 +677,24 @@ function CiviciScreen({ data, setData, via, zona, onSelect, onBack, onUfficio })
   const [editModal, setEditModal] = useState(null);
   const [editNumero, setEditNumero] = useState("");
   const [confirmDel, setConfirmDel] = useState(null);
-  const civici = (data.civici||[]).filter(c => c.viaId === via.id).filter(c => !search || c.numero.toLowerCase().includes(search.toLowerCase()));
+  const [sortCivici, setSortCivici] = useState("asc"); // asc | desc
+  const [filtroPari, setFiltroPari] = useState("tutti"); // tutti | pari | dispari
+
+  const civiciRaw = (data.civici||[])
+    .filter(c => c.viaId === via.id)
+    .filter(c => !search || c.numero.toLowerCase().includes(search.toLowerCase()))
+    .filter(c => {
+      const n = parseInt(c.numero);
+      if (filtroPari === "pari") return !isNaN(n) && n % 2 === 0;
+      if (filtroPari === "dispari") return !isNaN(n) && n % 2 !== 0;
+      return true;
+    })
+    .sort((a, b) => {
+      const na = parseInt(a.numero) || 0;
+      const nb = parseInt(b.numero) || 0;
+      return sortCivici === "asc" ? na - nb : nb - na;
+    });
+  const civici = civiciRaw;
   const contattiStats = id => {
     const tutti = (data.contatti||[]).filter(c => c.civicoId === id);
     const risposto = tutti.filter(c => c.risposto === "Y").length;
@@ -685,7 +732,26 @@ function CiviciScreen({ data, setData, via, zona, onSelect, onBack, onUfficio })
         <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 17, letterSpacing: 0.5 }}>{zona.nome}</span>
       </div>
       <HR />
-      <SectionTag label="CIVICI" count={civici.length} />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px 6px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>CIVICI</span>
+          <span style={{ background: T.surfaceHigh, color: T.text, borderRadius: 4, fontSize: 11, fontWeight: 700, padding: "1px 7px" }}>{civici.length}</span>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          {/* Ordine */}
+          <button className="tap" onClick={() => setSortCivici(s => s === "asc" ? "desc" : "asc")}
+            style={{ background: "none", border: `1px solid ${T.border}`, borderRadius: 6, padding: "4px 10px", color: T.textMuted, fontSize: 10, fontWeight: 700, cursor: "pointer", letterSpacing: 1 }}>
+            N° {sortCivici === "asc" ? "↑" : "↓"}
+          </button>
+          {/* Pari/Dispari */}
+          {["tutti","pari","dispari"].map(f => (
+            <button key={f} className="tap" onClick={() => setFiltroPari(f)}
+              style={{ background: filtroPari === f ? T.accentSoft : "none", border: `1px solid ${filtroPari === f ? T.accent : T.border}`, borderRadius: 6, padding: "4px 8px", color: filtroPari === f ? T.accent : T.textMuted, fontSize: 10, fontWeight: 700, cursor: "pointer", letterSpacing: 0.5, textTransform: "uppercase" }}>
+              {f === "tutti" ? "TUTTI" : f === "pari" ? "PARI" : "DISP."}
+            </button>
+          ))}
+        </div>
+      </div>
       <HR />
       <TH cols={["N°", "RISP.", ""]} widths="1fr 1.2fr 0.7fr" />
       {civici.map((c, i) => {
@@ -886,10 +952,21 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
   const [form, setForm] = useState(EMPTY_FORM(civico?.id));
   const [confirmDel, setConfirmDel] = useState(null);
   const [attModal, setAttModal] = useState(null); // attività da visualizzare
-  // Anti-spam risposto: { contattoId, lastColor, lastTime }
+  // Anti-spam risposto
   const rispostoLog = useRef({});
+  const [sortContatti, setSortContatti] = useState(""); // "" | "interno_asc" | "interno_desc" | "data_asc" | "data_desc"
 
-  const contatti = (data.contatti||[]).filter(c => c.civicoId === civico?.id).filter(c => !search || (c.nome+" "+c.cognome+" "+c.telefono).toLowerCase().includes(search.toLowerCase()));
+  const contattiFiltered = (data.contatti||[])
+    .filter(c => c.civicoId === civico?.id)
+    .filter(c => !search || (c.nome+" "+c.cognome+" "+c.telefono).toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      if (sortContatti === "interno_asc") return (parseInt(a.interno)||0) - (parseInt(b.interno)||0);
+      if (sortContatti === "interno_desc") return (parseInt(b.interno)||0) - (parseInt(a.interno)||0);
+      if (sortContatti === "data_asc") return parseDataOra(getLastAttivita({attivita: (data.attivita||[])}, a.id)?.dataOra) - parseDataOra(getLastAttivita({attivita: (data.attivita||[])}, b.id)?.dataOra);
+      if (sortContatti === "data_desc") return parseDataOra(getLastAttivita({attivita: (data.attivita||[])}, b.id)?.dataOra) - parseDataOra(getLastAttivita({attivita: (data.attivita||[])}, a.id)?.dataOra);
+      return 0;
+    });
+  const contatti = contattiFiltered;
   const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const save = async () => {
@@ -934,10 +1011,14 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
     const log = rispostoLog.current[c.id] || {};
     const now = Date.now();
     const TEN_MIN = 10 * 60 * 1000;
-    // Blocca se stesso colore e < 10 min
-    if (log.lastColor === nuovoStato && log.lastTime && (now - log.lastTime) < TEN_MIN) return;
-    // Se diverso colore, ok sempre
-    rispostoLog.current[c.id] = { lastColor: nuovoStato, lastTime: now };
+    // Blocca se >= 2 click e < 10 min dal primo click
+    if ((log.clickCount || 0) >= 2 && log.firstTime && (now - log.firstTime) < TEN_MIN) return;
+    // Reset se passati 10 min
+    if (log.firstTime && (now - log.firstTime) >= TEN_MIN) {
+      rispostoLog.current[c.id] = { clickCount: 1, firstTime: now };
+    } else {
+      rispostoLog.current[c.id] = { clickCount: (log.clickCount || 0) + 1, firstTime: log.firstTime || now };
+    }
     const nowDate = new Date();
     const fmt = `${nowDate.getDate()}/${nowDate.getMonth()+1}/${nowDate.getFullYear()} ${String(nowDate.getHours()).padStart(2,"0")}:${String(nowDate.getMinutes()).padStart(2,"0")}:${String(nowDate.getSeconds()).padStart(2,"0")}`;
     const rdIso = nowDate.toISOString();
@@ -965,6 +1046,21 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
         right={<><button onClick={() => setShowSearch(s => !s)} style={{ background:"none",border:"none",color:showSearch?T.accent:T.textMuted,cursor:"pointer",display:"flex",padding:4 }}><ISearch /></button><RefreshBtn onRefresh={() => { setSearch(""); setShowSearch(false); }} /></>} />
       {showSearch && <div style={{padding:"8px 16px",borderBottom:`1px solid ${T.border}`}}><input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cerca nome, cognome, telefono..." style={{width:"100%",background:T.surfaceHigh,border:`1px solid ${T.border}`,borderRadius:8,color:T.text,fontSize:14,padding:"8px 12px",outline:"none"}}/></div>}
 
+      {/* Filtri ordinamento contatti */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderBottom: `1px solid ${T.border}`, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, letterSpacing: 1, marginRight: 4 }}>ORDINA:</span>
+        {[
+          { v: "interno_asc",  label: "INT ↑" },
+          { v: "interno_desc", label: "INT ↓" },
+          { v: "data_asc",     label: "DATA ↑" },
+          { v: "data_desc",    label: "DATA ↓" },
+        ].map(f => (
+          <button key={f.v} className="tap" onClick={() => setSortContatti(s => s === f.v ? "" : f.v)}
+            style={{ background: sortContatti === f.v ? T.accentSoft : "none", border: `1px solid ${sortContatti === f.v ? T.accent : T.border}`, borderRadius: 6, padding: "4px 8px", color: sortContatti === f.v ? T.accent : T.textMuted, fontSize: 10, fontWeight: 700, cursor: "pointer", letterSpacing: 0.5 }}>
+            {f.label}
+          </button>
+        ))}
+      </div>
       {/* COLONNE: NOME | TEL | INT | SC | RISP | ULT.ATT | STATO | VUOTO | DEL */}
       <TH cols={["NOME","TEL","INT","SC","RISP","ULT.ATT","STATO","VUOTO",""]} widths="1.1fr 0.9fr 0.45fr 0.45fr 0.9fr 0.9fr 0.9fr 0.8fr 0.4fr" />
       {contatti.map((c, i) => {
@@ -1169,8 +1265,12 @@ function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack,
     const log = rispostoLog.current[contatto.id] || {};
     const now = Date.now();
     const TEN_MIN = 10 * 60 * 1000;
-    if (log.lastColor === nuovoStato && log.lastTime && (now - log.lastTime) < TEN_MIN) return;
-    rispostoLog.current[contatto.id] = { lastColor: nuovoStato, lastTime: now };
+    if ((log.clickCount || 0) >= 2 && log.firstTime && (now - log.firstTime) < TEN_MIN) return;
+    if (log.firstTime && (now - log.firstTime) >= TEN_MIN) {
+      rispostoLog.current[contatto.id] = { clickCount: 1, firstTime: now };
+    } else {
+      rispostoLog.current[contatto.id] = { clickCount: (log.clickCount || 0) + 1, firstTime: log.firstTime || now };
+    }
     const nowDate = new Date();
     const fmt = `${nowDate.getDate()}/${nowDate.getMonth()+1}/${nowDate.getFullYear()} ${String(nowDate.getHours()).padStart(2,"0")}:${String(nowDate.getMinutes()).padStart(2,"0")}:${String(nowDate.getSeconds()).padStart(2,"0")}`;
     const rdIso = nowDate.toISOString();
