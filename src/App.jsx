@@ -945,15 +945,16 @@ function AttivitaData({ dataOra }) {
 }
 
 /* ─── CONTATTI SCREEN ───────────────────────────────────────────────────── */
-function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUfficio, user }) {
+function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUfficio, user, rispostoLog: rispostoLogProp }) {
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM(civico?.id));
   const [confirmDel, setConfirmDel] = useState(null);
   const [attModal, setAttModal] = useState(null); // attività da visualizzare
-  // Anti-spam risposto
-  const rispostoLog = useRef({});
+  // Anti-spam risposto - use shared log if provided
+  const localRispostoLog = useRef({});
+  const rispostoLog = rispostoLogProp || localRispostoLog;
   const isUserAdmin = user.role === "admin" || user.email === "enricoriccamcm@gmail.com";
   const [sortContatti, setSortContatti] = useState(""); // "" | "interno_asc" | "interno_desc" | "data_asc" | "data_desc"
 
@@ -1183,7 +1184,7 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
 }
 
 /* ─── CONTATTO SCREEN ───────────────────────────────────────────────────── */
-function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack, onUfficio, user }) {
+function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack, onUfficio, user, rispostoLog: rispostoLogProp }) {
   const [modalAtt, setModalAtt] = useState(false);
   const [editing, setEditing] = useState(false);
   const [commento, setCommento] = useState("");
@@ -1194,7 +1195,8 @@ function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack,
   const [attDetailModal, setAttDetailModal] = useState(null);
   const [confirmBlock, setConfirmBlock] = useState(false);
   const [confirmUnblock, setConfirmUnblock] = useState(false);
-  const rispostoLog = useRef({});
+  const localRispostoLog = useRef({});
+  const rispostoLog = rispostoLogProp || localRispostoLog;
 
   const [editForm, setEditForm] = useState({
     nome: contattoInit.nome, cognome: contattoInit.cognome || "",
@@ -1553,6 +1555,8 @@ export default function App() {
   const pop  = () => setNav(n => n.slice(0, -1));
   const home = () => setNav([]);
   const cur = nav[nav.length - 1];
+  // Shared risposto log across all screens
+  const sharedRispostoLog = useRef({});
 
   if (!user) return <><style>{css}</style><ErrorBoundary><LoginScreen onLogin={setUser} /></ErrorBoundary></>;
 
@@ -1564,8 +1568,8 @@ export default function App() {
         {cur?.screen === "zone"     && <ZoneScreen     data={data} setData={setData} user={user} ufficio={cur.payload.ufficio} onBack={pop} onUfficio={home} onSelect={z => push("vie", { zona: z, ufficio: cur.payload.ufficio })} />}
         {cur?.screen === "vie"      && <VieScreen      data={data} setData={setData} zona={cur.payload.zona} onBack={pop} onUfficio={home} onSelect={v => push("civici", { via: v, zona: cur.payload.zona })} />}
         {cur?.screen === "civici"   && <CiviciScreen   data={data} setData={setData} via={cur.payload.via} zona={cur.payload.zona} onBack={pop} onUfficio={home} onSelect={c => push("contatti", { civico: c, via: cur.payload.via })} />}
-        {cur?.screen === "contatti" && <ContattiScreen data={data} setData={setData} civico={cur.payload.civico} via={cur.payload.via} onBack={pop} onUfficio={home} user={user} onSelect={c => push("contatto", { contatto: c, civico: cur.payload.civico })} />}
-        {cur?.screen === "contatto" && <ContattoScreen data={data} setData={setData} contatto={cur.payload.contatto} civico={cur.payload.civico} onBack={pop} onUfficio={home} user={user} />}
+        {cur?.screen === "contatti" && <ContattiScreen data={data} setData={setData} civico={cur.payload.civico} via={cur.payload.via} onBack={pop} onUfficio={home} user={user} rispostoLog={sharedRispostoLog} onSelect={c => push("contatto", { contatto: c, civico: cur.payload.civico })} />}
+        {cur?.screen === "contatto" && <ContattoScreen data={data} setData={setData} contatto={cur.payload.contatto} civico={cur.payload.civico} onBack={pop} onUfficio={home} user={user} rispostoLog={sharedRispostoLog} />}
       </div>
     </ErrorBoundary>
   );
