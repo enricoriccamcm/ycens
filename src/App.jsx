@@ -445,6 +445,28 @@ function LoginScreen({ onLogin }) {
 
 function UfficiScreen({ data, user, onSelect, onLogout }) {
   const uffici = ADMIN_ROLES.includes(user.role) ? data.uffici : data.uffici.filter(u => u.id === user.ufficioId);
+  const [changePwModal, setChangePwModal] = useState(false);
+  const [newPw, setNewPw] = useState("");
+  const [newPw2, setNewPw2] = useState("");
+  const [pwMsg, setPwMsg] = useState("");
+  const [pwLoading, setPwLoading] = useState(false);
+
+  const doChangePw = async () => {
+    if (newPw.length < 6) { setPwMsg("❌ Password troppo corta (min. 6 caratteri)"); return; }
+    if (newPw !== newPw2) { setPwMsg("❌ Le password non coincidono"); return; }
+    setPwLoading(true);
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${user.token}`, "apikey": SUPABASE_KEY },
+        body: JSON.stringify({ password: newPw })
+      });
+      if (res.ok) { setPwMsg("✅ Password cambiata!"); setNewPw(""); setNewPw2(""); setTimeout(() => { setChangePwModal(false); setPwMsg(""); }, 1500); }
+      else { setPwMsg("❌ Errore, riprova"); }
+    } catch(e) { setPwMsg("❌ Errore di rete"); }
+    setPwLoading(false);
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: T.bg, paddingBottom: 80, position: "relative", overflow: "hidden" }} className="screen">
       <svg style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", opacity: 0.055, pointerEvents: "none", zIndex: 0 }} viewBox="0 0 400 900" preserveAspectRatio="xMidYMid slice">
