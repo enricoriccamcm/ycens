@@ -1,6 +1,19 @@
 import React, { useState, useEffect, useRef } from "react";
 
 /* ─── SUPABASE CONFIG ───────────────────────────────────────────────────── */
+const ADMIN_ROLES = ["admin", "responsabile", "pluriaffiliato", "coach", "titolare"];
+const ROLE_LABEL = {
+  admin: "Amministratore",
+  responsabile: "Responsabile",
+  pluriaffiliato: "Pluriaffiliato",
+  coach: "Coach",
+  titolare: "Titolare",
+  consulente: "Consulente",
+  notiziere: "Notiziere",
+  coordinatrice: "Coordinatrice",
+  agente: "Agente",
+};
+const isAdminRole = (role) => ADMIN_ROLES.includes(role);
 const SUPABASE_URL = "https://qwadyehjzkuwsirlgeye.supabase.co";
 const SUPABASE_KEY = "sb_publishable_PAFzxLz4YBi5pT_CBIdJow_i9oxBwUT";
 
@@ -397,6 +410,7 @@ function LoginScreen({ onLogin }) {
         id: auth.user.id,
         email: auth.user.email,
         role: profile.role || "agente",
+        nome: profile.nome || null,
         ufficioId: profile.ufficio_id || null,
         token
       });
@@ -430,7 +444,7 @@ function LoginScreen({ onLogin }) {
 }
 
 function UfficiScreen({ data, user, onSelect, onLogout }) {
-  const uffici = user.role === "admin" ? data.uffici : data.uffici.filter(u => u.id === user.ufficioId);
+  const uffici = ADMIN_ROLES.includes(user.role) ? data.uffici : data.uffici.filter(u => u.id === user.ufficioId);
   return (
     <div style={{ minHeight: "100vh", background: T.bg, paddingBottom: 80, position: "relative", overflow: "hidden" }} className="screen">
       <svg style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", opacity: 0.055, pointerEvents: "none", zIndex: 0 }} viewBox="0 0 400 900" preserveAspectRatio="xMidYMid slice">
@@ -442,12 +456,15 @@ function UfficiScreen({ data, user, onSelect, onLogout }) {
       <div style={{ position: "relative", zIndex: 1 }}>
         <div style={{ background: T.surface, borderBottom: `1px solid ${T.border}`, padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <LogoFull height={28} />
-          <button onClick={onLogout} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", display: "flex", padding: 4 }}><ILogout /></button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button onClick={() => setChangePwModal(true)} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: "4px 8px" }}>🔑 PASSWORD</button>
+            <button onClick={onLogout} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", display: "flex", padding: 4 }}><ILogout /></button>
+          </div>
         </div>
         <div style={{ padding: "20px 18px 10px" }}>
-          <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", marginBottom: 2 }}>Benvenuto</div>
-          <div style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 20, letterSpacing: 0.5 }}>{user.email.split("@")[0].toUpperCase()}</div>
-          <div style={{ fontSize: 11, color: T.accent, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginTop: 2 }}>{user.role === "admin" ? "● Amministratore" : "● Agente"}</div>
+          <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", marginBottom: 2 }}>BENVENUTO</div>
+          <div style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 24, letterSpacing: 0.5 }}>{(user.nome || user.email.split("@")[0]).toUpperCase()}</div>
+          <div style={{ fontSize: 11, color: T.accent, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginTop: 2 }}>● {(ROLE_LABEL[user.role] || user.role).toUpperCase()}</div>
         </div>
         <HR />
         <div style={{ padding: "14px 18px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -481,6 +498,21 @@ function UfficiScreen({ data, user, onSelect, onLogout }) {
         </div>
       </div>
       <BottomBar onUfficio={() => {}} />
+
+      {changePwModal && <Modal title="Cambia Password" onClose={() => { setChangePwModal(false); setPwMsg(""); setNewPw(""); setNewPw2(""); }}>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>NUOVA PASSWORD</div>
+          <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="min. 6 caratteri"
+            style={{ width: "100%", padding: "11px 12px", background: T.surfaceHigh, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>CONFERMA PASSWORD</div>
+          <input type="password" value={newPw2} onChange={e => setNewPw2(e.target.value)} placeholder="ripeti la password"
+            style={{ width: "100%", padding: "11px 12px", background: T.surfaceHigh, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+        </div>
+        {pwMsg && <div style={{ fontSize: 12, color: pwMsg.includes("✅") ? "#4caf50" : T.accent, marginBottom: 12, fontWeight: 600 }}>{pwMsg}</div>}
+        <PrimaryBtn label={pwLoading ? "SALVATAGGIO..." : "SALVA PASSWORD"} onClick={doChangePw} />
+      </Modal>}
     </div>
   );
 }
@@ -493,7 +525,7 @@ function ZoneScreen({ data, setData, ufficio, onSelect, onBack, onUfficio, user 
   const [confirmDel, setConfirmDel] = useState(null);
   const [editModal, setEditModal] = useState(null);
   const [editNome, setEditNome] = useState("");
-  const isAdmin = user.role === "admin";
+  const isAdmin = ADMIN_ROLES.includes(user.role);
   const zone = (data.zone||[]).filter(z => z.ufficioId === ufficio.id).filter(z => !search || z.nome.toLowerCase().includes(search.toLowerCase()));
   const vieCount = id => (data.vie||[]).filter(v => v.zonaId === id).length;
 
@@ -955,7 +987,7 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
   // Anti-spam risposto - use shared log if provided
   const localRispostoLog = useRef({});
   const rispostoLog = rispostoLogProp || localRispostoLog;
-  const isUserAdmin = user.role === "admin" || user.email === "enricoriccamcm@gmail.com";
+  const isUserAdmin = ADMIN_ROLES.includes(user.role);
   const [sortContatti, setSortContatti] = useState(""); // "" | "interno_asc" | "interno_desc" | "data_asc" | "data_desc"
 
   const contattiFiltered = (data.contatti||[])
@@ -981,11 +1013,11 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
       const fmt = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`;
       const nuoveAttivita = [];
       if (form.risposto === "Y") {
-        nuoveAttivita.push({ id: Date.now(), contattoId: newId, commento: "RISPOSTO", dataOra: fmt, utente: user?.email || "" });
-        sbFetch("attivita", { method: "POST", body: JSON.stringify({ commento: "RISPOSTO", data_ora: fmt, utente: user?.email||"", contatto_id: newId }), token: user.token }).catch(console.error);
+        nuoveAttivita.push({ id: Date.now(), contattoId: newId, commento: "RISPOSTO", dataOra: fmt, utente: user?.nome || user?.email || "" });
+        sbFetch("attivita", { method: "POST", body: JSON.stringify({ commento: "RISPOSTO", data_ora: fmt, utente: user?.nome || user?.email || "", contatto_id: newId }), token: user.token }).catch(console.error);
       } else if (form.risposto === "N") {
-        nuoveAttivita.push({ id: Date.now(), contattoId: newId, commento: "NON RISPONDE", dataOra: fmt, utente: user?.email || "" });
-        sbFetch("attivita", { method: "POST", body: JSON.stringify({ commento: "NON RISPONDE", data_ora: fmt, utente: user?.email||"", contatto_id: newId }), token: user.token }).catch(console.error);
+        nuoveAttivita.push({ id: Date.now(), contattoId: newId, commento: "NON RISPONDE", dataOra: fmt, utente: user?.nome || user?.email || "" });
+        sbFetch("attivita", { method: "POST", body: JSON.stringify({ commento: "NON RISPONDE", data_ora: fmt, utente: user?.nome || user?.email || "", contatto_id: newId }), token: user.token }).catch(console.error);
       }
       setData(d => ({ ...d,
         contatti: [...(d.contatti||[]), { id: newId, ...form, nome: form.nome.toUpperCase(), cognome: form.cognome.toUpperCase(), civicoId: civico?.id }],
@@ -1026,10 +1058,10 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
     const rdIso = nowDate.toISOString();
     const commento = nuovoStato === "Y" ? "RISPOSTO" : "NON RISPONDE";
     sbFetch(`contatti?id=eq.${c.id}`, { method: "PATCH", body: JSON.stringify({ risposto: nuovoStato, risposto_data: rdIso }), token: user.token, prefer: "return=minimal" }).catch(console.error);
-    sbFetch("attivita", { method: "POST", body: JSON.stringify({ commento, data_ora: fmt, utente: user?.email||"", contatto_id: c.id }), token: user.token }).catch(console.error);
+    sbFetch("attivita", { method: "POST", body: JSON.stringify({ commento, data_ora: fmt, utente: user?.nome || user?.email || "", contatto_id: c.id }), token: user.token }).catch(console.error);
     setData(d => ({ ...d,
       contatti: d.contatti.map(x => x.id === c.id ? { ...x, risposto: nuovoStato, risposto_data: rdIso } : x),
-      attivita: [...(d.attivita||[]), { id: Date.now(), contattoId: c.id, commento, dataOra: fmt, utente: user?.email || "" }]
+      attivita: [...(d.attivita||[]), { id: Date.now(), contattoId: c.id, commento, dataOra: fmt, utente: user?.nome || user?.email || "" }]
     }));
   };
 
@@ -1212,7 +1244,7 @@ function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack,
 
   const contatto = (data.contatti||[]).find(c => c.id === contattoInit.id) || contattoInit;
   const isBlocked = contatto.bloccato;
-  const isAdmin = user.role === "admin" || user.email === "enricoriccamcm@gmail.com";
+  const isAdmin = ADMIN_ROLES.includes(user.role);
 
   const attivita = (data.attivita||[]).filter(a => a.contattoId === contatto.id).sort((a, b) =>
     sortAsc ? parseDataOra(a.dataOra) - parseDataOra(b.dataOra) : parseDataOra(b.dataOra) - parseDataOra(a.dataOra)
@@ -1223,9 +1255,9 @@ function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack,
     const now = new Date();
     const fmt = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`;
     try {
-      await sbFetch("attivita", { method: "POST", body: JSON.stringify({ commento: commento.trim(), data_ora: fmt, utente: user?.email||"", contatto_id: contatto.id }), token: user.token });
+      await sbFetch("attivita", { method: "POST", body: JSON.stringify({ commento: commento.trim(), data_ora: fmt, utente: user?.nome || user?.email || "", contatto_id: contatto.id }), token: user.token });
     } catch(e) { console.error("addAtt error:", e); }
-    setData(d => ({ ...d, attivita: [...(d.attivita||[]), { id: Date.now(), contattoId: contatto.id, commento: commento.trim(), dataOra: fmt, utente: user.email }] }));
+    setData(d => ({ ...d, attivita: [...(d.attivita||[]), { id: Date.now(), contattoId: contatto.id, commento: commento.trim(), dataOra: fmt, utente: user.nome || user.email }] }));
     setCommento(""); setModalAtt(false);
   };
 
@@ -1281,8 +1313,8 @@ function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack,
     const rdIso = nowDate.toISOString();
     const commento2 = nuovoStato === "Y" ? "RISPOSTO" : "NON RISPONDE";
     sbFetch(`contatti?id=eq.${contatto.id}`, { method: "PATCH", body: JSON.stringify({ risposto: nuovoStato, risposto_data: rdIso }), token: user.token, prefer: "return=minimal" }).catch(console.error);
-    sbFetch("attivita", { method: "POST", body: JSON.stringify({ commento: commento2, data_ora: fmt, utente: user?.email||"", contatto_id: contatto.id }), token: user.token }).catch(console.error);
-    setData(d => ({ ...d, contatti: d.contatti.map(x => x.id === contatto.id ? { ...x, risposto: nuovoStato, risposto_data: rdIso } : x), attivita: [...(d.attivita||[]), { id: Date.now(), contattoId: contatto.id, commento: commento2, dataOra: fmt, utente: user?.email || "" }] }));
+    sbFetch("attivita", { method: "POST", body: JSON.stringify({ commento: commento2, data_ora: fmt, utente: user?.nome || user?.email || "", contatto_id: contatto.id }), token: user.token }).catch(console.error);
+    setData(d => ({ ...d, contatti: d.contatti.map(x => x.id === contatto.id ? { ...x, risposto: nuovoStato, risposto_data: rdIso } : x), attivita: [...(d.attivita||[]), { id: Date.now(), contattoId: contatto.id, commento: commento2, dataOra: fmt, utente: user?.nome || user?.email || "" }] }));
   };
 
   const updEdit = (k, v) => setEditForm(f => ({ ...f, [k]: v }));
@@ -1445,7 +1477,7 @@ function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack,
           <textarea value={commento} onChange={e => setCommento(e.target.value)} placeholder="Inserisci nota..." rows={4}
             style={{ width: "100%", padding: "10px 12px", background: T.surfaceHigh, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 14, outline: "none", resize: "none", fontFamily: "'Barlow', sans-serif" }} />
         </div>
-        <div style={{ padding: "8px 12px", background: T.surfaceHigh, borderRadius: 8, marginBottom: 14, fontSize: 12, color: T.textMuted }}>👤 {user.email}</div>
+        <div style={{ padding: "8px 12px", background: T.surfaceHigh, borderRadius: 8, marginBottom: 14, fontSize: 12, color: T.textMuted }}>👤 {user.nome || user.email}</div>
         <PrimaryBtn label="SALVA ATTIVITÀ" onClick={addAtt} />
       </Modal>}
 
