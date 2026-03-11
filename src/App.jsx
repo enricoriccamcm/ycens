@@ -18,15 +18,17 @@ const SUPABASE_URL = "https://qwadyehjzkuwsirlgeye.supabase.co";
 const SUPABASE_KEY = "sb_publishable_PAFzxLz4YBi5pT_CBIdJow_i9oxBwUT";
 
 async function sbFetch(path, options = {}) {
+  // RLS disabled - always use SUPABASE_KEY, token is optional
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     headers: {
       "apikey": SUPABASE_KEY,
-      "Authorization": `Bearer ${options.token || SUPABASE_KEY}`,
+      "Authorization": `Bearer ${SUPABASE_KEY}`,
       "Content-Type": "application/json",
       "Prefer": options.prefer || "return=representation",
       ...(options.headers || {})
     },
-    ...options
+    method: options.method || "GET",
+    body: options.body || undefined
   });
   if (!res.ok) { const e = await res.text(); throw new Error(e); }
   const text = await res.text();
@@ -444,7 +446,8 @@ function LoginScreen({ onLogin }) {
 }
 
 function UfficiScreen({ data, user, onSelect, onLogout }) {
-  const uffici = ADMIN_ROLES.includes(user.role) ? data.uffici : data.uffici.filter(u => u.id === user.ufficioId);
+  const SUPER_ROLES = ["pluriaffiliato", "titolare"];
+  const uffici = SUPER_ROLES.includes(user.role) ? data.uffici : data.uffici.filter(u => u.id === user.ufficioId);
   const [changePwModal, setChangePwModal] = useState(false);
   const [newPw, setNewPw] = useState("");
   const [newPw2, setNewPw2] = useState("");
@@ -574,7 +577,7 @@ function ZoneScreen({ data, setData, ufficio, onSelect, onBack, onUfficio, user 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, paddingBottom: 58 }} className="screen">
       <TopBar title={ufficio.nome} subtitle="UFFICIO DI" onBack={onBack}
-        right={<><button onClick={() => setShowSearch(s => !s)} style={{ background:"none",border:"none",color:showSearch?T.accent:T.textMuted,cursor:"pointer",display:"flex",padding:4 }}><ISearch /></button><RefreshBtn onRefresh={() => { setSearch(""); setShowSearch(false); }} /></>} />
+        right={<><button onClick={() => setShowSearch(s => !s)} style={{ background:"none",border:"none",color:showSearch?T.accent:T.textMuted,cursor:"pointer",display:"flex",padding:4 }}><ISearch /></button><RefreshBtn onRefresh={() => { setSearch(""); setShowSearch(false); if(onReload) onReload(); }} /></>} />
       {showSearch && <div style={{padding:"8px 16px",borderBottom:`1px solid ${T.border}`}}><input autoFocus value={search} onChange={e=>setSearch(e.target.value.toUpperCase())} placeholder="Cerca zona..." style={{width:"100%",background:T.surfaceHigh,border:`1px solid ${T.border}`,borderRadius:8,color:T.text,fontSize:14,padding:"8px 12px",outline:"none"}}/></div>}
       <SectionTag label="ZONA" count={zone.length} />
       <HR />
@@ -625,7 +628,7 @@ function ZoneScreen({ data, setData, ufficio, onSelect, onBack, onUfficio, user 
   );
 }
 
-function VieScreen({ data, setData, zona, onSelect, onBack, onUfficio }) {
+function VieScreen({ data, setData, zona, onSelect, onBack, onUfficio, onReload }) {
   const [modal, setModal] = useState(false);
   const [nome, setNome] = useState("");
   const [search, setSearch] = useState("");
@@ -665,7 +668,7 @@ function VieScreen({ data, setData, zona, onSelect, onBack, onUfficio }) {
   return (
     <div style={{ minHeight: "100vh", background: T.bg, paddingBottom: 58 }} className="screen">
       <TopBar title={zona.nome} subtitle="NOME ZONA" onBack={onBack}
-        right={<><button onClick={() => setShowSearch(s => !s)} style={{ background:"none",border:"none",color:showSearch?T.accent:T.textMuted,cursor:"pointer",display:"flex",padding:4 }}><ISearch /></button><RefreshBtn onRefresh={() => { setSearch(""); setShowSearch(false); }} /></>} />
+        right={<><button onClick={() => setShowSearch(s => !s)} style={{ background:"none",border:"none",color:showSearch?T.accent:T.textMuted,cursor:"pointer",display:"flex",padding:4 }}><ISearch /></button><RefreshBtn onRefresh={() => { setSearch(""); setShowSearch(false); if(onReload) onReload(); }} /></>} />
       {showSearch && <div style={{padding:"8px 16px",borderBottom:`1px solid ${T.border}`}}><input autoFocus value={search} onChange={e=>setSearch(e.target.value.toUpperCase())} placeholder="Cerca via..." style={{width:"100%",background:T.surfaceHigh,border:`1px solid ${T.border}`,borderRadius:8,color:T.text,fontSize:14,padding:"8px 12px",outline:"none"}}/></div>}
       <SectionTag label="VIE" count={vie.length} />
       <HR />
@@ -723,7 +726,7 @@ function VieScreen({ data, setData, zona, onSelect, onBack, onUfficio }) {
   );
 }
 
-function CiviciScreen({ data, setData, via, zona, onSelect, onBack, onUfficio }) {
+function CiviciScreen({ data, setData, via, zona, onSelect, onBack, onUfficio, onReload }) {
   const [modal, setModal] = useState(false);
   const [numero, setNumero] = useState("");
   const [search, setSearch] = useState("");
@@ -779,7 +782,7 @@ function CiviciScreen({ data, setData, via, zona, onSelect, onBack, onUfficio })
   return (
     <div style={{ minHeight: "100vh", background: T.bg, paddingBottom: 58 }} className="screen">
       <TopBar title={via.nome} subtitle="NOME VIA" onBack={onBack}
-        right={<><button onClick={() => setShowSearch(s => !s)} style={{ background:"none",border:"none",color:showSearch?T.accent:T.textMuted,cursor:"pointer",display:"flex",padding:4 }}><ISearch /></button><RefreshBtn onRefresh={() => { setSearch(""); setShowSearch(false); }} /></>} />
+        right={<><button onClick={() => setShowSearch(s => !s)} style={{ background:"none",border:"none",color:showSearch?T.accent:T.textMuted,cursor:"pointer",display:"flex",padding:4 }}><ISearch /></button><RefreshBtn onRefresh={() => { setSearch(""); setShowSearch(false); if(onReload) onReload(); }} /></>} />
       {showSearch && <div style={{padding:"8px 16px",borderBottom:`1px solid ${T.border}`}}><input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cerca civico..." style={{width:"100%",background:T.surfaceHigh,border:`1px solid ${T.border}`,borderRadius:8,color:T.text,fontSize:14,padding:"8px 12px",outline:"none"}}/></div>}
       <div style={{ padding: "12px 16px 6px" }}>
         <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, letterSpacing: 1, marginBottom: 4 }}>ZONA</div>
@@ -999,7 +1002,7 @@ function AttivitaData({ dataOra }) {
 }
 
 /* ─── CONTATTI SCREEN ───────────────────────────────────────────────────── */
-function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUfficio, user, rispostoLog: rispostoLogProp }) {
+function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUfficio, user, onReload, rispostoLog: rispostoLogProp }) {
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -1099,7 +1102,7 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
   return (
     <div style={{ minHeight: "100vh", background: T.bg, paddingBottom: 58 }} className="screen">
       <TopBar title={`CIVICO ${civico?.numero || ""}`} onBack={onBack}
-        right={<><button onClick={() => setShowSearch(s => !s)} style={{ background:"none",border:"none",color:showSearch?T.accent:T.textMuted,cursor:"pointer",display:"flex",padding:4 }}><ISearch /></button><RefreshBtn onRefresh={() => { setSearch(""); setShowSearch(false); }} /></>} />
+        right={<><button onClick={() => setShowSearch(s => !s)} style={{ background:"none",border:"none",color:showSearch?T.accent:T.textMuted,cursor:"pointer",display:"flex",padding:4 }}><ISearch /></button><RefreshBtn onRefresh={() => { setSearch(""); setShowSearch(false); if(onReload) onReload(); }} /></>} />
       {showSearch && <div style={{padding:"8px 16px",borderBottom:`1px solid ${T.border}`}}><input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cerca nome, cognome, telefono..." style={{width:"100%",background:T.surfaceHigh,border:`1px solid ${T.border}`,borderRadius:8,color:T.text,fontSize:14,padding:"8px 12px",outline:"none"}}/></div>}
 
       {/* Filtri ordinamento contatti */}
@@ -1238,7 +1241,7 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
 }
 
 /* ─── CONTATTO SCREEN ───────────────────────────────────────────────────── */
-function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack, onUfficio, user, rispostoLog: rispostoLogProp }) {
+function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack, onUfficio, user, onReload, rispostoLog: rispostoLogProp }) {
   const [modalAtt, setModalAtt] = useState(false);
   const [editing, setEditing] = useState(false);
   const [commento, setCommento] = useState("");
@@ -1355,7 +1358,7 @@ function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack,
       <TopBar title={contatto.nome} onBack={onBack}
         right={<>
           {!isBlocked && <button className="tap" onClick={() => setEditing(true)} style={{ background:"none", border:"none", color:T.textMuted, cursor:"pointer", display:"flex", padding:4 }}><IEditPen /></button>}
-          <RefreshBtn onRefresh={() => {}} />
+          <RefreshBtn onRefresh={() => { if(onReload) onReload(); }} />
         </>} />
 
       {/* Banner bloccato */}
@@ -1565,43 +1568,47 @@ export default function App() {
   const [data, setData] = useState(INITIAL_STATE);
   const [dbLoaded, setDbLoaded] = useState(false);
 
+  const loadData = async (token) => {
+    try {
+      const [uffici, zone, vie, civici, contatti, attivita] = await Promise.all([
+        sbFetch("uffici?select=*&order=id", { token }),
+        sbFetch("zone?select=*&order=id", { token }),
+        sbFetch("vie?select=*&order=id", { token }),
+        sbFetch("civici?select=*&order=id", { token }),
+        sbFetch("contatti?select=*&order=id", { token }),
+        sbFetch("attivita?select=*&order=id", { token }),
+      ]);
+      setData({
+        uffici: uffici.map(u => ({ id: u.id, nome: u.nome })),
+        zone: zone.map(z => ({ id: z.id, nome: z.nome, ufficioId: z.ufficio_id })),
+        vie: vie.map(v => ({ id: v.id, nome: v.nome, zonaId: v.zona_id })),
+        civici: civici.map(c => ({ id: c.id, numero: c.numero, viaId: c.via_id })),
+        contatti: contatti.map(c => {
+          const rd = c.risposto_data ? new Date(c.risposto_data) : null;
+          const expired = rd && (new Date() - rd) > 60 * 24 * 60 * 60 * 1000;
+          return {
+            id: c.id, nome: c.nome, cognome: c.cognome, telefono: c.telefono,
+            risposto: expired ? "" : (c.risposto||""),
+            risposto_data: expired ? null : (c.risposto_data||null),
+            vuoto: c.vuoto||"", stato: c.stato||"", interno: c.interno||"",
+            scala: c.scala||"", bloccato: c.bloccato||false,
+            civicoId: c.civico_id
+          };
+        }),
+        attivita: attivita.map(a => ({ id: a.id, commento: a.commento, dataOra: a.data_ora, utente: a.utente, contattoId: a.contatto_id })),
+      });
+      setDbLoaded(true);
+    } catch(e) {
+      console.error("Errore caricamento dati:", e);
+    }
+  };
+
   useEffect(() => {
-    if (!user || dbLoaded) return;
-    const loadData = async () => {
-      try {
-        const [uffici, zone, vie, civici, contatti, attivita] = await Promise.all([
-          sbFetch("uffici?select=*&order=id", { token: user.token }),
-          sbFetch("zone?select=*&order=id", { token: user.token }),
-          sbFetch("vie?select=*&order=id", { token: user.token }),
-          sbFetch("civici?select=*&order=id", { token: user.token }),
-          sbFetch("contatti?select=*&order=id", { token: user.token }),
-          sbFetch("attivita?select=*&order=id", { token: user.token }),
-        ]);
-        setData({
-          uffici: uffici.map(u => ({ id: u.id, nome: u.nome })),
-          zone: zone.map(z => ({ id: z.id, nome: z.nome, ufficioId: z.ufficio_id })),
-          vie: vie.map(v => ({ id: v.id, nome: v.nome, zonaId: v.zona_id })),
-          civici: civici.map(c => ({ id: c.id, numero: c.numero, viaId: c.via_id })),
-          contatti: contatti.map(c => {
-            const rd = c.risposto_data ? new Date(c.risposto_data) : null;
-            const expired = rd && (new Date() - rd) > 60 * 24 * 60 * 60 * 1000;
-            return {
-              id: c.id, nome: c.nome, cognome: c.cognome, telefono: c.telefono,
-              risposto: expired ? "" : (c.risposto||""),
-              risposto_data: expired ? null : (c.risposto_data||null),
-              vuoto: c.vuoto||"", stato: c.stato||"", interno: c.interno||"",
-              scala: c.scala||"", bloccato: c.bloccato||false,
-              civicoId: c.civico_id
-            };
-          }),
-          attivita: attivita.map(a => ({ id: a.id, commento: a.commento, dataOra: a.data_ora, utente: a.utente, contattoId: a.contatto_id })),
-        });
-        setDbLoaded(true);
-      } catch(e) {
-        console.error("Errore caricamento dati:", e);
-      }
-    };
-    loadData();
+    if (!user) return;
+    loadData(user.token);
+    // Polling ogni 15 secondi
+    const interval = setInterval(() => loadData(user.token), 15000);
+    return () => clearInterval(interval);
   }, [user]);
 
   const [nav, setNav] = useState([]);
@@ -1619,11 +1626,11 @@ export default function App() {
       <div className="app-container">
         <style>{css}</style>
         {!cur && <UfficiScreen data={data} user={user} onLogout={() => setUser(null)} onSelect={u => push("zone", { ufficio: u })} />}
-        {cur?.screen === "zone"     && <ZoneScreen     data={data} setData={setData} user={user} ufficio={cur.payload.ufficio} onBack={pop} onUfficio={home} onSelect={z => push("vie", { zona: z, ufficio: cur.payload.ufficio })} />}
-        {cur?.screen === "vie"      && <VieScreen      data={data} setData={setData} zona={cur.payload.zona} onBack={pop} onUfficio={home} onSelect={v => push("civici", { via: v, zona: cur.payload.zona })} />}
-        {cur?.screen === "civici"   && <CiviciScreen   data={data} setData={setData} via={cur.payload.via} zona={cur.payload.zona} onBack={pop} onUfficio={home} onSelect={c => push("contatti", { civico: c, via: cur.payload.via })} />}
-        {cur?.screen === "contatti" && <ContattiScreen data={data} setData={setData} civico={cur.payload.civico} via={cur.payload.via} onBack={pop} onUfficio={home} user={user} rispostoLog={sharedRispostoLog} onSelect={c => push("contatto", { contatto: c, civico: cur.payload.civico })} />}
-        {cur?.screen === "contatto" && <ContattoScreen data={data} setData={setData} contatto={cur.payload.contatto} civico={cur.payload.civico} onBack={pop} onUfficio={home} user={user} rispostoLog={sharedRispostoLog} />}
+        {cur?.screen === "zone"     && <ZoneScreen     data={data} setData={setData} user={user} ufficio={cur.payload.ufficio} onBack={pop} onUfficio={home} onReload={() => loadData(user.token)} onSelect={z => push("vie", { zona: z, ufficio: cur.payload.ufficio })} />}
+        {cur?.screen === "vie"      && <VieScreen      data={data} setData={setData} zona={cur.payload.zona} onBack={pop} onUfficio={home} onReload={() => loadData(user.token)} onSelect={v => push("civici", { via: v, zona: cur.payload.zona })} />}
+        {cur?.screen === "civici"   && <CiviciScreen   data={data} setData={setData} via={cur.payload.via} zona={cur.payload.zona} onBack={pop} onUfficio={home} onReload={() => loadData(user.token)} onSelect={c => push("contatti", { civico: c, via: cur.payload.via })} />}
+        {cur?.screen === "contatti" && <ContattiScreen data={data} setData={setData} civico={cur.payload.civico} via={cur.payload.via} onBack={pop} onUfficio={home} user={user} onReload={() => loadData(user.token)} rispostoLog={sharedRispostoLog} onSelect={c => push("contatto", { contatto: c, civico: cur.payload.civico })} />}
+        {cur?.screen === "contatto" && <ContattoScreen data={data} setData={setData} contatto={cur.payload.contatto} civico={cur.payload.civico} onBack={pop} onUfficio={home} user={user} onReload={() => loadData(user.token)} rispostoLog={sharedRispostoLog} />}
       </div>
     </ErrorBoundary>
   );
