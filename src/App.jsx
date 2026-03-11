@@ -542,7 +542,7 @@ function UfficiScreen({ data, user, onSelect, onLogout }) {
   );
 }
 
-function ZoneScreen({ data, setData, ufficio, onSelect, onBack, onUfficio, user }) {
+function ZoneScreen({ data, setData, ufficio, onSelect, onBack, onUfficio, user, onReload }) {
   const [modal, setModal] = useState(false);
   const [nome, setNome] = useState("");
   const [search, setSearch] = useState("");
@@ -1606,8 +1606,8 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     loadData(user.token);
-    // Polling ogni 15 secondi
-    const interval = setInterval(() => loadData(user.token), 15000);
+    // Polling ogni 5 secondi
+    const interval = setInterval(() => loadData(user.token), 5000);
     return () => clearInterval(interval);
   }, [user]);
 
