@@ -554,9 +554,16 @@ function ZoneScreen({ data, setData, ufficio, onSelect, onBack, onUfficio, user,
   const zone = (data.zone||[]).filter(z => z.ufficioId === ufficio.id).filter(z => !search || z.nome.toLowerCase().includes(search.toLowerCase()));
   const vieCount = id => (data.vie||[]).filter(v => v.zonaId === id).length;
 
-  const add = () => {
+  const add = async () => {
     if (!nome.trim()) return;
-    setData(d => ({ ...d, zone: [...(d.zone||[]), { id: Date.now(), nome: nome.trim().toUpperCase(), ufficioId: ufficio.id }] }));
+    try {
+      const rows = await sbFetch("zone", { method: "POST", body: JSON.stringify({ nome: nome.trim().toUpperCase(), ufficio_id: ufficio.id }) });
+      const newId = rows[0]?.id || Date.now();
+      setData(d => ({ ...d, zone: [...(d.zone||[]), { id: newId, nome: nome.trim().toUpperCase(), ufficioId: ufficio.id }] }));
+    } catch(e) {
+      console.error("Errore salvataggio zona:", e);
+      setData(d => ({ ...d, zone: [...(d.zone||[]), { id: Date.now(), nome: nome.trim().toUpperCase(), ufficioId: ufficio.id }] }));
+    }
     setNome(""); setModal(false);
   };
 
@@ -645,9 +652,16 @@ function VieScreen({ data, setData, zona, onSelect, onBack, onUfficio, onReload 
     return { totale: tutti.length, risposti };
   };
 
-  const add = () => {
+  const add = async () => {
     if (!nome.trim()) return;
-    setData(d => ({ ...d, vie: [...(d.vie||[]), { id: Date.now(), nome: nome.trim().toUpperCase(), zonaId: zona.id }] }));
+    try {
+      const rows = await sbFetch("vie", { method: "POST", body: JSON.stringify({ nome: nome.trim().toUpperCase(), zona_id: zona.id }) });
+      const newId = rows[0]?.id || Date.now();
+      setData(d => ({ ...d, vie: [...(d.vie||[]), { id: newId, nome: nome.trim().toUpperCase(), zonaId: zona.id }] }));
+    } catch(e) {
+      console.error("Errore salvataggio via:", e);
+      setData(d => ({ ...d, vie: [...(d.vie||[]), { id: Date.now(), nome: nome.trim().toUpperCase(), zonaId: zona.id }] }));
+    }
     setNome(""); setModal(false);
   };
 
@@ -760,8 +774,14 @@ function CiviciScreen({ data, setData, via, zona, onSelect, onBack, onUfficio, o
 
   const add = async () => {
     if (!numero.trim()) return;
-    const tempId = Date.now();
-    setData(d => ({ ...d, civici: [...(d.civici||[]), { id: tempId, numero: numero.trim(), viaId: via.id }] }));
+    try {
+      const rows = await sbFetch("civici", { method: "POST", body: JSON.stringify({ numero: numero.trim(), via_id: via.id }) });
+      const newId = rows[0]?.id || Date.now();
+      setData(d => ({ ...d, civici: [...(d.civici||[]), { id: newId, numero: numero.trim(), viaId: via.id }] }));
+    } catch(e) {
+      console.error("Errore salvataggio civico:", e);
+      setData(d => ({ ...d, civici: [...(d.civici||[]), { id: Date.now(), numero: numero.trim(), viaId: via.id }] }));
+    }
     setNumero(""); setModal(false);
   };
 
