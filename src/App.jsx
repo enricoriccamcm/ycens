@@ -61,33 +61,11 @@ const INITIAL_STATE = {
     { id: 2, nome: "CASALOTTI" },
     { id: 3, nome: "TORREVECCHIA" },
   ],
-  zone: [
-    { id: 1, nome: "ACILIA A", ufficioId: 1 },
-    { id: 2, nome: "ACILIA B", ufficioId: 1 },
-    { id: 3, nome: "TORREVECCHIA NORD", ufficioId: 3 },
-    { id: 4, nome: "TORREVECCHIA SUD", ufficioId: 3 },
-    { id: 5, nome: "CASALOTTI CENTRO", ufficioId: 2 },
-  ],
-  vie: [
-    { id: 1, nome: "VIA DI SAPONARA", zonaId: 1 },
-    { id: 2, nome: "VIA DELLE ACILIE", zonaId: 1 },
-    { id: 3, nome: "VIA ROMA", zonaId: 2 },
-  ],
-  civici: [
-    { id: 1, numero: "19", viaId: 1 },
-    { id: 2, numero: "21", viaId: 1 },
-    { id: 3, numero: "5", viaId: 2 },
-  ],
-  contatti: [
-    { id: 1, nome: "ENRICO", cognome: "RICCA", telefono: "333666555444", risposto: "Y", risposto_data: null, stato: "INFORMAZIONE", vuoto: "", interno: "", scala: "", bloccato: false, civicoId: 1 },
-    { id: 2, nome: "GIALLI", cognome: "", telefono: "33333222222", risposto: "Y", risposto_data: null, stato: "", vuoto: "Y", interno: "", scala: "", bloccato: false, civicoId: 1 },
-    { id: 3, nome: "BLU", cognome: "", telefono: "444444444", risposto: "", risposto_data: null, stato: "", vuoto: "", interno: "", scala: "", bloccato: false, civicoId: 1 },
-  ],
-  attivita: [
-    { id: 1, contattoId: 1, commento: "Emiliano gnegnegne", dataOra: "4/3/2026 13:11:47", utente: "enricoriccamcm@gmail.com" },
-    { id: 2, contattoId: 1, commento: "nv", dataOra: "18/2/2026 14:24:16", utente: "enricoriccamcm@gmail.com" },
-    { id: 3, contattoId: 1, commento: "NON VENDE", dataOra: "17/2/2026 13:22:23", utente: "enricoriccamcm@gmail.com" },
-  ],
+  zone: [],
+  vie: [],
+  civici: [],
+  contatti: [],
+  attivita: [],
 };
 
 /* ─── THEME ──────────────────────────────────────────────────────────────── */
@@ -1160,7 +1138,7 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
               <span style={{ padding: "4px 2px", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={e => e.stopPropagation()}>
                 {isBlocked
                   ? <span style={{ fontSize: 11, color: "#444", textAlign: "center" }}>{c.interno || "—"}</span>
-                  : <select value={c.interno || ""} onChange={e => { e.stopPropagation(); setData(d => ({ ...d, contatti: d.contatti.map(x => x.id === c.id ? { ...x, interno: e.target.value } : x) })); }}
+                  : <select value={c.interno || ""} onChange={e => { e.stopPropagation(); const v = e.target.value; sbFetch(`contatti?id=eq.${c.id}`, { method: "PATCH", body: JSON.stringify({ interno: v }), prefer: "return=minimal" }).catch(console.error); setData(d => ({ ...d, contatti: d.contatti.map(x => x.id === c.id ? { ...x, interno: v } : x) })); }}
                     style={{ background: c.interno ? "rgba(224,92,92,0.15)" : "#1e1e1e", border: `1px solid ${c.interno ? "#e05c5c" : "#2a2a2a"}`, borderRadius: 4, color: c.interno ? "#e05c5c" : "#555", fontSize: 10, fontWeight: 700, padding: "3px 1px", width: "100%", outline: "none", cursor: "pointer", textAlign: "center" }}>
                     <option value="">—</option>
                     {Array.from({length: 40}, (_, i) => i+1).map(n => <option key={n} value={n}>{n}</option>)}
@@ -1171,7 +1149,7 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
               <span style={{ padding: "4px 2px", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={e => e.stopPropagation()}>
                 {isBlocked
                   ? <span style={{ fontSize: 11, color: "#444", textAlign: "center" }}>{c.scala || "—"}</span>
-                  : <select value={c.scala || ""} onChange={e => { e.stopPropagation(); setData(d => ({ ...d, contatti: d.contatti.map(x => x.id === c.id ? { ...x, scala: e.target.value } : x) })); }}
+                  : <select value={c.scala || ""} onChange={e => { e.stopPropagation(); const v = e.target.value; sbFetch(`contatti?id=eq.${c.id}`, { method: "PATCH", body: JSON.stringify({ scala: v }), prefer: "return=minimal" }).catch(console.error); setData(d => ({ ...d, contatti: d.contatti.map(x => x.id === c.id ? { ...x, scala: v } : x) })); }}
                     style={{ background: c.scala ? "rgba(224,92,92,0.15)" : "#1e1e1e", border: `1px solid ${c.scala ? "#e05c5c" : "#2a2a2a"}`, borderRadius: 4, color: c.scala ? "#e05c5c" : "#555", fontSize: 10, fontWeight: 700, padding: "3px 1px", width: "100%", outline: "none", cursor: "pointer", textAlign: "center" }}>
                     <option value="">—</option>
                     {SCALE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -1210,7 +1188,7 @@ function ContattiScreen({ data, setData, civico, via, onSelect, onBack, onUffici
                     : c.stato === "CONCORRENZA" ? { color: "#f0a500", bg: "rgba(240,165,0,0.15)", border: "#f0a500" }
                     : { color: "#555", bg: "#1e1e1e", border: "#2a2a2a" };
                   return (
-                    <select value={c.stato || ""} onChange={e => { e.stopPropagation(); setData(d => ({ ...d, contatti: d.contatti.map(x => x.id === c.id ? { ...x, stato: e.target.value } : x) })); }}
+                    <select value={c.stato || ""} onChange={e => { e.stopPropagation(); const v = e.target.value; sbFetch(`contatti?id=eq.${c.id}`, { method: "PATCH", body: JSON.stringify({ stato: v }), prefer: "return=minimal" }).catch(console.error); setData(d => ({ ...d, contatti: d.contatti.map(x => x.id === c.id ? { ...x, stato: v } : x) })); }}
                       style={{ background: sc.bg, border: `1px solid ${sc.border}`, borderRadius: 4, color: sc.color, fontSize: 9, fontWeight: 700, padding: "3px 1px", width: "100%", outline: "none", cursor: "pointer", textAlign: "center" }}>
                       <option value="">—</option>
                       <option value="INFORMAZIONE">INFO</option>
@@ -1417,7 +1395,7 @@ function ContattoScreen({ data, setData, contatto: contattoInit, civico, onBack,
           <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, letterSpacing: 1, marginBottom: 8, textTransform: "uppercase" }}>INTERNO</div>
           {isBlocked
             ? <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 18, color: T.textMuted }}>{contatto.interno ? `Interno ${contatto.interno}` : "—"}</span>
-            : <select value={contatto.interno || ""} onChange={e => setData(d => ({ ...d, contatti: d.contatti.map(x => x.id === contatto.id ? { ...x, interno: e.target.value } : x) }))}
+            : <select value={contatto.interno || ""} onChange={e => { const v = e.target.value; sbFetch(`contatti?id=eq.${contatto.id}`, { method: "PATCH", body: JSON.stringify({ interno: v }), prefer: "return=minimal" }).catch(console.error); setData(d => ({ ...d, contatti: d.contatti.map(x => x.id === contatto.id ? { ...x, interno: v } : x) })); }}
                 style={{ background: contatto.interno ? "rgba(224,92,92,0.1)" : "#1e1e1e", border: `1px solid ${contatto.interno ? "#e05c5c" : "#2a2a2a"}`, borderRadius: 8, color: contatto.interno ? "#e05c5c" : "#555", fontSize: 16, fontWeight: 700, padding: "10px 14px", width: "100%", outline: "none", cursor: "pointer" }}>
                 <option value="">— nessuno —</option>
                 {Array.from({length: 40}, (_, i) => i+1).map(n => <option key={n} value={n}>Interno {n}</option>)}
